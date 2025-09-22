@@ -30,7 +30,11 @@ export const VideoDisplay = ({ videoData, onBack }: VideoDisplayProps) => {
         <Button 
           variant="outline" 
           size="sm"
-          onClick={() => window.open(`https://www.youtube.com/watch?v=${videoData.id}`, '_blank')}
+          onClick={() => {
+            const youtubeUrl = `https://www.youtube.com/watch?v=${videoData.id}`;
+            console.log('Opening YouTube URL:', youtubeUrl);
+            window.open(youtubeUrl, '_blank', 'noopener,noreferrer');
+          }}
           className="flex items-center gap-2"
         >
           <ExternalLink className="h-4 w-4" />
