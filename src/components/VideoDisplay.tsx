@@ -14,6 +14,25 @@ interface VideoDisplayProps {
 }
 
 export const VideoDisplay = ({ videoData, onBack }: VideoDisplayProps) => {
+  const handleOriginalClick = (e: React.MouseEvent) => {
+    const youtubeUrl = `https://www.youtube.com/watch?v=${videoData.id}`;
+    try {
+      const win = window.open(youtubeUrl, '_blank', 'noopener,noreferrer');
+      if (!win) {
+        if (window.top) {
+          window.top.location.href = youtubeUrl;
+        } else {
+          window.location.href = youtubeUrl;
+        }
+      }
+    } catch {
+      if (window.top) {
+        window.top.location.href = youtubeUrl;
+      } else {
+        window.location.href = youtubeUrl;
+      }
+    }
+  };
   return (
     <div className="w-full">
       <div className="flex items-center gap-4 mb-6">
@@ -30,17 +49,11 @@ export const VideoDisplay = ({ videoData, onBack }: VideoDisplayProps) => {
         <Button 
           variant="outline" 
           size="sm"
-          asChild
+          onClick={handleOriginalClick}
+          className="flex items-center gap-2"
         >
-          <a 
-            href={`https://www.youtube.com/watch?v=${videoData.id}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2"
-          >
-            <ExternalLink className="h-4 w-4" />
-            Original Video
-          </a>
+          <ExternalLink className="h-4 w-4" />
+          Original Video
         </Button>
       </div>
 
