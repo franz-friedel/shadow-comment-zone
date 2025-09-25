@@ -8,6 +8,8 @@ interface AuthContextType {
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<{ error: any | null }>;
+  signUpWithEmail: (email: string, password: string) => Promise<{ error: any | null }>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -16,6 +18,8 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   signInWithGoogle: async () => {},
   signOut: async () => {},
+  signInWithEmail: async () => ({ error: null }),
+  signUpWithEmail: async () => ({ error: null }),
 });
 
 export const useAuth = () => {
@@ -36,16 +40,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener
+    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      (_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
       }
     );
 
-    // Check for existing session
+    // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -57,17 +61,41 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const signInWithGoogle = async () => {
     const redirectUrl = `${window.location.origin}/`;
-    
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: redirectUrl
-      }
+        redirectTo: redirectUrl,
+        queryParams: { prompt: 'select_account' },
+      },
     });
-    
+
     if (error) {
       console.error('Error signing in with Google:', error);
     }
+  };
+
+  const signInWithEmail = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      console.error('Error signing in with email:', error);
+    }
+    return { error };
+  };
+
+  const signUpWithEmail = async (email: string, password: string) => {
+    const redirectUrl = `${window.location.origin}/`;
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: redirectUrl,
+      },
+    });
+    if (error) {
+      console.error('Error signing up:', error);
+    }
+    return { error };
   };
 
   const signOut = async () => {
@@ -77,12 +105,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
-  const value = {
+  const value: AuthContextType = {
     user,
     session,
     loading,
     signInWithGoogle,
     signOut,
+    signInWithEmail,
+    signUpWithEmail,
   };
 
   return (
