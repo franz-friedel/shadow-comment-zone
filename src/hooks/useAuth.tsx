@@ -62,16 +62,30 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const signInWithGoogle = async () => {
     const redirectUrl = `${window.location.origin}/`;
 
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: redirectUrl,
         queryParams: { prompt: 'select_account' },
+        skipBrowserRedirect: true,
       },
     });
 
     if (error) {
       console.error('Error signing in with Google:', error);
+      return;
+    }
+
+    if (data?.url) {
+      try {
+        if (window.top) {
+          (window.top as Window).location.href = data.url;
+        } else {
+          window.location.href = data.url;
+        }
+      } catch {
+        window.location.href = data.url;
+      }
     }
   };
 
