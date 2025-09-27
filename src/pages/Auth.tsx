@@ -67,7 +67,7 @@ const Auth = () => {
           });
         }
       } else {
-        const { error } = await signUpWithEmail(validatedData.email, validatedData.password);
+        const { error } = await signUpWithEmail(validatedData.email, validatedData.password, validatedData.name);
         if (error) {
           toast({
             title: 'Sign up failed',
