@@ -53,11 +53,11 @@ export const CommentSection = ({ videoId }: CommentSectionProps) => {
             .from('profiles')
             .select('display_name, avatar_url')
             .eq('user_id', comment.user_id)
-            .single();
+            .maybeSingle();
 
           return {
             ...comment,
-            display_name: profile?.display_name || null,
+            display_name: profile?.display_name || 'Anonymous User',
             avatar_url: profile?.avatar_url || null,
           };
         })
