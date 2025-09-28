@@ -1,3 +1,8 @@
-# Ezoic ads.txt redirect
-# This file redirects to Ezoic's ads.txt manager
-# Redirect handled by vercel.json
+# Ezoic ads.txt file
+# This file contains authorized ad sellers for shadowcomment.com
+# Managed by Ezoic's ads.txt manager
+
+# Ezoic authorized sellers
+google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0
+google.com, pub-0000000000000000, RESELLER, f08c47fec0942fa0
+ezoic.com, 19390, DIRECT
