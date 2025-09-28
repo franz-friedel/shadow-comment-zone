@@ -40,7 +40,24 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
+    // Check localStorage first for mock user data
+    const savedUser = localStorage.getItem('user');
+    const savedSession = localStorage.getItem('session');
+    
+    if (savedUser && savedSession) {
+      try {
+        const userData = JSON.parse(savedUser);
+        const sessionData = JSON.parse(savedSession);
+        setUser(userData);
+        setSession(sessionData);
+        setLoading(false);
+        return;
+      } catch (error) {
+        console.error('Error parsing saved user data:', error);
+      }
+    }
+
+    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setSession(session);
@@ -49,7 +66,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
     );
 
-    // THEN check for existing session
+    // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -91,6 +108,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     console.log('Google sign-in successful:', googleUser);
     setUser(googleUser);
     setSession(session);
+    
+    // Save to localStorage for persistence
+    localStorage.setItem('user', JSON.stringify(googleUser));
+    localStorage.setItem('session', JSON.stringify(session));
   };
 
   const signInWithEmail = async (email: string, password: string) => {
@@ -121,6 +142,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     console.log('Mock sign-in successful:', mockUser);
     setUser(mockUser);
     setSession(session);
+    
+    // Save to localStorage for persistence
+    localStorage.setItem('user', JSON.stringify(mockUser));
+    localStorage.setItem('session', JSON.stringify(session));
     
     return { error: null };
   };
@@ -154,6 +179,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setUser(mockUser);
     setSession(session);
     
+    // Save to localStorage for persistence
+    localStorage.setItem('user', JSON.stringify(mockUser));
+    localStorage.setItem('session', JSON.stringify(session));
+    
     return { error: null };
   };
 
@@ -162,6 +191,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     if (error) {
       console.error('Error signing out:', error);
     }
+    setUser(null);
+    setSession(null);
+    
+    // Clear localStorage
+    localStorage.removeItem('user');
+    localStorage.removeItem('session');
   };
 
   const value: AuthContextType = {

@@ -10,31 +10,9 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LogOut, User, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { ProfileDialog } from './ProfileDialog';
-import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 
 export const UserMenu = () => {
   const { user, signOut, loading } = useAuth();
-  const [profile, setProfile] = useState<any>(null);
-
-  useEffect(() => {
-    if (user) {
-      fetchProfile();
-    }
-  }, [user]);
-
-  const fetchProfile = async () => {
-    if (!user) return;
-
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    setProfile(data);
-  };
 
   if (loading) {
     return (
@@ -50,8 +28,8 @@ export const UserMenu = () => {
     );
   }
 
-  const displayName = profile?.display_name || user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
-  const avatarUrl = profile?.avatar_url || user.user_metadata?.avatar_url;
+  const displayName = user.user_metadata?.name || user.user_metadata?.display_name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
+  const avatarUrl = user.user_metadata?.avatar_url;
 
   return (
     <DropdownMenu>
@@ -75,12 +53,12 @@ export const UserMenu = () => {
           </div>
         </div>
         <DropdownMenuSeparator />
-        <ProfileDialog>
-          <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+        <DropdownMenuItem asChild>
+          <Link to="/profile">
             <Settings className="mr-2 h-4 w-4" />
-            <span>Account Settings</span>
-          </DropdownMenuItem>
-        </ProfileDialog>
+            <span>Profile Settings</span>
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={signOut}>
           <LogOut className="mr-2 h-4 w-4" />
           <span>Sign out</span>
