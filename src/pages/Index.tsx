@@ -58,6 +58,11 @@ const Index = () => {
           </div>
         </div>
         
+        {/* Adsterra Native Banner */}
+        <div className="w-full mb-8 text-center">
+          <div id="container-3baabbac23109fdff98a672f9f31b7e8"></div>
+        </div>
+        
         {!currentVideo ? (
           <div className="flex min-h-[80vh] items-center justify-center">
             <VideoInput onVideoLoad={handleVideoLoad} />
