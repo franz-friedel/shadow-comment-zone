@@ -5,6 +5,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
+import AdsTxt from "./pages/AdsTxt";
 import NotFound from "./pages/NotFound";
 
 const App = () => (
@@ -14,6 +15,7 @@ const App = () => (
         <Route path="/" element={<Index />} />
         <Route path="/auth" element={<Auth />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/ads.txt" element={<AdsTxt />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <Toaster />
