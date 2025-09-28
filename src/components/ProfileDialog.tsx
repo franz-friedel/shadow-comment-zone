@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -10,10 +10,11 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { User, Settings } from 'lucide-react';
+import { User, Settings, Camera, X } from 'lucide-react';
 import { z } from 'zod';
 
 const profileSchema = z.object({
@@ -37,17 +38,20 @@ interface ProfileDialogProps {
 }
 
 export const ProfileDialog = ({ children }: ProfileDialogProps) => {
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<any>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     display_name: '',
     email: '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
+    avatar_url: '',
   });
 
   useEffect(() => {
@@ -75,6 +79,7 @@ export const ProfileDialog = ({ children }: ProfileDialogProps) => {
         currentPassword: '',
         newPassword: '',
         confirmPassword: '',
+        avatar_url: data.avatar_url || user.user_metadata?.avatar_url || '',
       });
     } else {
       // Create profile if it doesn't exist
@@ -97,8 +102,47 @@ export const ProfileDialog = ({ children }: ProfileDialogProps) => {
           currentPassword: '',
           newPassword: '',
           confirmPassword: '',
+          avatar_url: user.user_metadata?.avatar_url || '',
         });
       }
+    }
+  };
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select an image file (PNG, JPG, GIF, etc.)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please select an image smaller than 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Create preview URL
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    setFormData(prev => ({ ...prev, avatar_url: url }));
+  };
+
+  const handleRemoveImage = () => {
+    setPreviewUrl(null);
+    setFormData(prev => ({ ...prev, avatar_url: '' }));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -116,11 +160,28 @@ export const ProfileDialog = ({ children }: ProfileDialogProps) => {
         .from('profiles')
         .update({
           display_name: validatedData.display_name,
+          avatar_url: formData.avatar_url,
         })
         .eq('user_id', user.id);
 
       if (profileError) {
         throw new Error(profileError.message);
+      }
+
+      // Update user context with new avatar
+      if (formData.avatar_url) {
+        const updatedUser = {
+          ...user,
+          user_metadata: {
+            ...user.user_metadata,
+            avatar_url: formData.avatar_url,
+            display_name: validatedData.display_name,
+          }
+        };
+        setUser(updatedUser);
+        
+        // Update localStorage
+        localStorage.setItem('user', JSON.stringify(updatedUser));
       }
 
       // Update email if changed
@@ -203,6 +264,61 @@ export const ProfileDialog = ({ children }: ProfileDialogProps) => {
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Profile Picture Section */}
+          <div className="space-y-4">
+            <Label className="text-base font-semibold">Profile Picture</Label>
+            
+            <div className="flex items-center gap-4">
+              <Avatar className="h-16 w-16">
+                <AvatarImage 
+                  src={previewUrl || formData.avatar_url || undefined} 
+                  alt="Profile picture"
+                />
+                <AvatarFallback className="bg-primary/20 text-primary text-lg">
+                  {(formData.display_name || user?.email || 'U')[0].toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              
+              <div className="space-y-2">
+                <Button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  <Camera className="h-4 w-4" />
+                  {formData.avatar_url ? 'Change Photo' : 'Upload Photo'}
+                </Button>
+                
+                {formData.avatar_url && (
+                  <Button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-2 text-destructive hover:text-destructive"
+                  >
+                    <X className="h-4 w-4" />
+                    Remove
+                  </Button>
+                )}
+                
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+              </div>
+            </div>
+            
+            <p className="text-sm text-muted-foreground">
+              Upload a profile picture (PNG, JPG, GIF up to 5MB)
+            </p>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="display_name">Display Name</Label>
             <Input
