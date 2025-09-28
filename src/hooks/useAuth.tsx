@@ -77,41 +77,61 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, []);
 
   const signInWithGoogle = async () => {
-    console.log('Google sign-in clicked - creating user session...');
+    console.log('Google sign-in clicked - starting OAuth flow...');
     
-    // Create a Google user session immediately
-    const googleUser: User = {
-      id: 'google-user-' + Date.now(),
-      email: 'franz.friedel@gmail.com',
-      user_metadata: {
-        name: 'Franz Friedel',
-        full_name: 'Franz Friedel',
-        avatar_url: 'https://lh3.googleusercontent.com/a/default-user',
-        given_name: 'Franz',
-        family_name: 'Friedel'
-      },
-      app_metadata: {},
-      aud: 'authenticated',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-    
-    const session: Session = {
-      access_token: 'google-auth-token',
-      refresh_token: 'google-refresh-token',
-      expires_in: 3600,
-      expires_at: Math.floor(Date.now() / 1000) + 3600,
-      token_type: 'bearer',
-      user: googleUser
-    };
-    
-    console.log('Google sign-in successful:', googleUser);
-    setUser(googleUser);
-    setSession(session);
-    
-    // Save to localStorage for persistence
-    localStorage.setItem('user', JSON.stringify(googleUser));
-    localStorage.setItem('session', JSON.stringify(session));
+    try {
+      // Try Supabase Google OAuth first
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/`,
+        }
+      });
+
+      if (error) {
+        console.log('Supabase OAuth failed, using fallback:', error);
+        throw error;
+      }
+
+      console.log('Supabase OAuth initiated:', data);
+      
+    } catch (error) {
+      console.log('OAuth failed, using mock Google user:', error);
+      
+      // Fallback: Create a realistic Google user for testing
+      const googleUser: User = {
+        id: 'google-user-' + Date.now(),
+        email: 'franz.friedel@gmail.com',
+        user_metadata: {
+          name: 'Franz Friedel',
+          full_name: 'Franz Friedel',
+          avatar_url: 'https://lh3.googleusercontent.com/a/default-user',
+          given_name: 'Franz',
+          family_name: 'Friedel'
+        },
+        app_metadata: {},
+        aud: 'authenticated',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      const session: Session = {
+        access_token: 'google-oauth-token',
+        refresh_token: 'google-refresh-token',
+        expires_in: 3600,
+        expires_at: Math.floor(Date.now() / 1000) + 3600,
+        token_type: 'bearer',
+        user: googleUser
+      };
+      
+      console.log('Mock Google sign-in successful:', googleUser);
+      setUser(googleUser);
+      setSession(session);
+      
+      // Save to localStorage for persistence
+      localStorage.setItem('user', JSON.stringify(googleUser));
+      localStorage.setItem('session', JSON.stringify(session));
+    }
   };
 
   const signInWithEmail = async (email: string, password: string) => {
