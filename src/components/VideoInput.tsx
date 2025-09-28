@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Youtube, Link, MessageCircle } from "lucide-react";
+import { Youtube, Link } from "lucide-react";
 
 interface VideoInputProps {
   onVideoLoad: (videoId: string, videoData: any) => void;
@@ -68,11 +68,10 @@ export const VideoInput = ({ onVideoLoad }: VideoInputProps) => {
     <div className="w-full max-w-2xl mx-auto">
       <Card className="p-8 bg-card border-border shadow-lg">
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <Youtube className="h-8 w-8 text-primary" />
-            <MessageCircle className="h-8 w-8 text-accent" />
+          <div className="flex items-center justify-center mb-4">
+            <Youtube className="h-12 w-12 text-red-600" />
           </div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-2">
+          <h1 className="text-3xl font-bold gradient-text mb-2">
             Shadow YouTube Comments
           </h1>
           <p className="text-muted-foreground">
@@ -96,18 +95,14 @@ export const VideoInput = ({ onVideoLoad }: VideoInputProps) => {
             <Button 
               type="submit" 
               disabled={isLoading}
-              variant="shadow"
               size="lg"
-              className="h-12 px-6"
+              className="h-12 px-6 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white"
             >
               {isLoading ? "Loading..." : "Enter Shadow"}
             </Button>
           </div>
         </form>
 
-        <div className="mt-6 text-sm text-muted-foreground text-center">
-          <p>Support free speech • No censorship • Community moderated</p>
-        </div>
       </Card>
     </div>
   );

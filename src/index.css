@@ -18,8 +18,8 @@ All colors MUST be HSL.
     --popover: 240 10% 5.9%;
     --popover-foreground: 0 0% 98%;
 
-    /* Primary - Shadow red/purple gradient theme */
-    --primary: 0 72% 51%;
+    /* Primary - YouTube red theme */
+    --primary: 0 84% 60%;
     --primary-foreground: 0 0% 98%;
 
     --secondary: 240 5% 15%;
@@ -28,7 +28,7 @@ All colors MUST be HSL.
     --muted: 240 5% 12%;
     --muted-foreground: 240 5% 65%;
 
-    --accent: 280 100% 60%;
+    --accent: 0 84% 60%;
     --accent-foreground: 0 0% 98%;
 
     --destructive: 0 84.2% 60.2%;
@@ -36,13 +36,13 @@ All colors MUST be HSL.
 
     --border: 240 6% 20%;
     --input: 240 6% 15%;
-    --ring: 0 72% 51%;
+    --ring: 0 84% 60%;
 
     --radius: 0.75rem;
 
     /* Custom design tokens for Shadow YouTube */
-    --shadow-gradient: linear-gradient(135deg, hsl(0 72% 51%), hsl(280 100% 60%));
-    --shadow-glow: 0 0 30px hsl(0 72% 51% / 0.3);
+    --shadow-gradient: linear-gradient(135deg, hsl(0 84% 60%), hsl(0 84% 50%));
+    --shadow-glow: 0 0 30px hsl(0 84% 60% / 0.3);
     --comment-bg: 240 8% 8%;
     --video-embed: 240 6% 10%;
 
@@ -95,5 +95,30 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  /* YouTube red gradient text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-red-600 to-red-500 bg-clip-text text-transparent;
+    filter: drop-shadow(0 0 12px hsl(0 84% 60% / 0.4));
+  }
+
+  /* AdSense styling */
+  .adsense-ad {
+    @apply rounded-lg overflow-hidden;
+    min-height: 90px;
+  }
+
+  .adsense-ad ins {
+    @apply rounded-lg;
+  }
+
+  /* Responsive ads */
+  @media (max-width: 768px) {
+    .adsense-ad {
+      min-height: 50px;
+    }
   }
 }

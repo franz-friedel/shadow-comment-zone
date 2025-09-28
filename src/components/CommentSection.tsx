@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { AdSenseAd } from "@/components/AdSenseAd";
 import { MessageCircle, ThumbsUp, ThumbsDown, Reply, Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -190,8 +191,9 @@ export const CommentSection = ({ videoId }: CommentSectionProps) => {
             No comments yet. Be the first to comment!
           </div>
         ) : (
-          comments.map((comment) => (
-            <Card key={comment.id} className="p-4 bg-comment-bg border-border hover:bg-muted/50 transition-all duration-200">
+          comments.map((comment, index) => (
+            <div key={comment.id}>
+              <Card className="p-4 bg-comment-bg border-border hover:bg-muted/50 transition-all duration-200">
               <div className="flex gap-3">
                 <Avatar className="h-10 w-10">
                   <AvatarImage src={comment.avatar_url || undefined} />
@@ -213,7 +215,20 @@ export const CommentSection = ({ videoId }: CommentSectionProps) => {
                   <p className="text-foreground leading-relaxed">{comment.content}</p>
                 </div>
               </div>
-            </Card>
+              </Card>
+              
+              {/* Ad after every 3rd comment */}
+              {(index + 1) % 3 === 0 && (
+                <div className="my-4">
+                  <AdSenseAd 
+                    adSlot="1234567893" 
+                    adFormat="horizontal"
+                    adStyle={{ display: "block", height: "90px" }}
+                    className="text-center"
+                  />
+                </div>
+              )}
+            </div>
           ))
         )}
       </div>
