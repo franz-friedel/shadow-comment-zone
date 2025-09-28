@@ -43,5 +43,13 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Fallback ads.txt content -->
+    <script>
+      if (window.location.pathname === '/ads.txt') {
+        document.body.innerHTML = '<pre># ads.txt file for shadowcomment.com\n# This file lists authorized digital sellers for this domain\n\n# Google AdSense\ngoogle.com, pub-3772894258095114, DIRECT, f08c47fec0942fa0\n\n# Ezoic\nezoic.com, 19390, DIRECT\n\n# Additional authorized sellers will be added by Ezoic</pre>';
+        document.title = 'ads.txt';
+      }
+    </script>
   </body>
 </html>
