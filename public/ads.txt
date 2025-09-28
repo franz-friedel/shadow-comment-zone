@@ -1,8 +1,10 @@
-# Ezoic ads.txt file
-# This file contains authorized ad sellers for shadowcomment.com
-# Managed by Ezoic's ads.txt manager
+# ads.txt file for shadowcomment.com
+# This file lists authorized digital sellers for this domain
 
-# Ezoic authorized sellers
-google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0
-google.com, pub-0000000000000000, RESELLER, f08c47fec0942fa0
+# Google AdSense
+google.com, pub-3772894258095114, DIRECT, f08c47fec0942fa0
+
+# Ezoic
 ezoic.com, 19390, DIRECT
+
+# Additional authorized sellers will be added by Ezoic
