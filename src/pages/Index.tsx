@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { VideoInput } from "@/components/VideoInput";
 import { VideoDisplay } from "@/components/VideoDisplay";
 import { CommentSection } from "@/components/CommentSection";
@@ -8,14 +9,40 @@ import { Button } from "@/components/ui/button";
 import { Coffee } from "lucide-react";
 
 const Index = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [currentVideo, setCurrentVideo] = useState<{ id: string; data: any } | null>(null);
+
+  // Load video from URL parameters on component mount
+  useEffect(() => {
+    const videoId = searchParams.get('video');
+    const videoDataParam = searchParams.get('data');
+    
+    if (videoId && videoDataParam) {
+      try {
+        const videoData = JSON.parse(decodeURIComponent(videoDataParam));
+        setCurrentVideo({ id: videoId, data: videoData });
+      } catch (error) {
+        console.error('Error parsing video data from URL:', error);
+        // Clear invalid URL parameters
+        setSearchParams({});
+      }
+    }
+  }, [searchParams, setSearchParams]);
 
   const handleVideoLoad = (videoId: string, videoData: any) => {
     setCurrentVideo({ id: videoId, data: videoData });
+    
+    // Update URL parameters
+    setSearchParams({
+      video: videoId,
+      data: encodeURIComponent(JSON.stringify(videoData))
+    });
   };
 
   const handleBack = () => {
     setCurrentVideo(null);
+    // Clear URL parameters
+    setSearchParams({});
   };
 
   return (
