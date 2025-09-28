@@ -15,22 +15,15 @@ interface VideoDisplayProps {
 
 export const VideoDisplay = ({ videoData, onBack }: VideoDisplayProps) => {
   const handleOriginalClick = (e: React.MouseEvent) => {
+    e.preventDefault();
     const youtubeUrl = `https://www.youtube.com/watch?v=${videoData.id}`;
-    try {
-      const win = window.open(youtubeUrl, '_blank', 'noopener,noreferrer');
-      if (!win) {
-        if (window.top) {
-          window.top.location.href = youtubeUrl;
-        } else {
-          window.location.href = youtubeUrl;
-        }
-      }
-    } catch {
-      if (window.top) {
-        window.top.location.href = youtubeUrl;
-      } else {
-        window.location.href = youtubeUrl;
-      }
+    
+    // Try to open in new tab
+    const win = window.open(youtubeUrl, '_blank', 'noopener,noreferrer');
+    
+    // If popup was blocked, show a message instead of navigating current tab
+    if (!win) {
+      alert('Popup blocked! Please allow popups for this site or right-click and select "Open in new tab"');
     }
   };
   return (
