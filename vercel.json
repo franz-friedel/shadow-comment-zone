@@ -1,9 +1,8 @@
 {
-  "redirects": [
+  "rewrites": [
     {
       "source": "/ads.txt",
-      "destination": "/ads.html",
-      "statusCode": 302
+      "destination": "/api/ads.txt"
     }
   ]
 }
