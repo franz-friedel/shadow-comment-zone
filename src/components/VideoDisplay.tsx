@@ -14,18 +14,6 @@ interface VideoDisplayProps {
 }
 
 export const VideoDisplay = ({ videoData, onBack }: VideoDisplayProps) => {
-  const handleOriginalClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    const youtubeUrl = `https://www.youtube.com/watch?v=${videoData.id}`;
-    
-    // Try to open in new tab
-    const win = window.open(youtubeUrl, '_blank', 'noopener,noreferrer');
-    
-    // If popup was blocked, show a message instead of navigating current tab
-    if (!win) {
-      alert('Popup blocked! Please allow popups for this site or right-click and select "Open in new tab"');
-    }
-  };
   return (
     <div className="w-full">
       <div className="flex items-center gap-4 mb-6">
@@ -39,15 +27,15 @@ export const VideoDisplay = ({ videoData, onBack }: VideoDisplayProps) => {
           Back to Search
         </Button>
         <div className="flex-1" />
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={handleOriginalClick}
-          className="flex items-center gap-2"
+        <a
+          href={`https://www.youtube.com/watch?v=${videoData.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-foreground bg-background border border-input rounded-md hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
         >
           <ExternalLink className="h-4 w-4" />
           Original Video
-        </Button>
+        </a>
       </div>
 
       <Card className="p-4 bg-video-embed border-border mb-6">
