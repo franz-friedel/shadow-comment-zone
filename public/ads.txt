@@ -1,0 +1,3 @@
+# Google AdSense ads.txt file
+# This file helps verify your site for Google AdSense
+# Placeholder for ads.txt verification

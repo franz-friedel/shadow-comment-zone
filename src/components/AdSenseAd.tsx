@@ -32,7 +32,7 @@ export const AdSenseAd = ({
       <ins
         className="adsbygoogle"
         style={adStyle}
-        data-ad-client="ca-pub-3471300692216938"
+        data-ad-client="ca-pub-3772894258095114"
         data-ad-slot={adSlot}
         data-ad-format={adFormat}
         data-full-width-responsive={responsive ? "true" : "false"}
