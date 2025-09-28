@@ -30,7 +30,7 @@ export const VideoDisplay = ({ videoData, onBack }: VideoDisplayProps) => {
         <a
           href={`https://www.youtube.com/watch?v=${videoData.id}`}
           target="_blank"
-          rel="noopener noreferrer"
+          rel="noreferrer"
           className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-foreground bg-background border border-input rounded-md hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
         >
           <ExternalLink className="h-4 w-4" />

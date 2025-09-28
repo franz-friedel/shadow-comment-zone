@@ -161,15 +161,6 @@ const Auth = () => {
               {submitting ? 'Please wait...' : isLogin ? 'Sign In' : 'Create Account'}
             </Button>
 
-            <button
-  type="button"
-  onClick={signInWithGooglePopup} // uses the service you imported
-  className="w-full rounded-md py-3 font-medium border flex items-center justify-center gap-2 mt-4"
->
-  Continue with Google
-</button>
-
-
             <div className="text-center">
               <Button
                 type="button"
@@ -198,10 +189,18 @@ const Auth = () => {
               type="button"
               variant="outline"
               className="w-full cursor-pointer"
-              onClick={() => {
-                console.log('Google button clicked!');
-                setError(null);
-                signInWithGoogle();
+              onClick={async () => {
+                try {
+                  console.log('Google button clicked!');
+                  await signInWithGoogle();
+                } catch (error) {
+                  console.error('Error signing in with Google:', error);
+                  toast({
+                    title: 'Sign in failed',
+                    description: 'Could not sign in with Google. Please try again.',
+                    variant: 'destructive',
+                  });
+                }
               }}
             >
               <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
@@ -237,7 +236,7 @@ const Auth = () => {
                 className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white border-0"
               >
                 <a 
-                  href="https://buymeacoffee.com/franzfriedel" 
+                  href="https://buymeacoffee.com/shadowcomments" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="flex items-center gap-2"

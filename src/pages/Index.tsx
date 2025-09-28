@@ -65,8 +65,8 @@ const Index = () => {
               className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white border-0"
             >
               <a 
-                href="https://buymeacoffee.com/franzfriedel" 
-                target="_blank" 
+                href="https://buymeacoffee.com/shadowcomments" 
+                target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2"
               >

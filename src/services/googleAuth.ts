@@ -1,6 +1,11 @@
-// Google OAuth configuration
-const GOOGLE_CLIENT_ID = 'your-google-client-id.apps.googleusercontent.com';
-const GOOGLE_REDIRECT_URI = window.location.origin;
+import { supabase } from '../integrations/supabase/client';
+
+declare global {
+  interface Window {
+    google: any;
+    gapi: any;
+  }
+}
 
 interface GoogleUser {
   id: string;
@@ -51,7 +56,7 @@ export class GoogleAuthService {
   private initializeGoogleAuth(resolve: (user: GoogleUser) => void, reject: (error: any) => void): void {
     try {
       const auth2 = window.gapi.auth2.init({
-        client_id: GOOGLE_CLIENT_ID,
+        client_id: process.env.GOOGLE_CLIENT_ID || 'your-google-client-id',
         cookiepolicy: 'single_host_origin',
       });
 
@@ -85,58 +90,19 @@ export class GoogleAuthService {
   }
 }
 
-// Fallback method using Google OAuth popup
-export const signInWithGooglePopup = (): Promise<GoogleUser> => {
-  return new Promise((resolve, reject) => {
-    const clientId = 'your-google-client-id.apps.googleusercontent.com';
-    const redirectUri = window.location.origin;
+export const signInWithGooglePopup = async () => {
+  try {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`
+      }
+    });
     
-    // Create OAuth URL
-    const authUrl = `https://accounts.google.com/oauth/authorize?` +
-      `client_id=${clientId}&` +
-      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-      `response_type=code&` +
-      `scope=openid%20email%20profile&` +
-      `access_type=offline&` +
-      `prompt=select_account`;
-
-    // Open popup window
-    const popup = window.open(
-      authUrl,
-      'google-auth',
-      'width=500,height=600,scrollbars=yes,resizable=yes'
-    );
-
-    if (!popup) {
-      reject(new Error('Popup blocked'));
-      return;
-    }
-
-    // Listen for popup messages
-    const messageListener = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return;
-      
-      if (event.data.type === 'GOOGLE_AUTH_SUCCESS') {
-        window.removeEventListener('message', messageListener);
-        popup.close();
-        resolve(event.data.user);
-      } else if (event.data.type === 'GOOGLE_AUTH_ERROR') {
-        window.removeEventListener('message', messageListener);
-        popup.close();
-        reject(new Error(event.data.error));
-      }
-    };
-
-    window.addEventListener('message', messageListener);
-
-    // Check if popup is closed manually
-    const checkClosed = setInterval(() => {
-      if (popup.closed) {
-        clearInterval(checkClosed);
-        window.removeEventListener('message', messageListener);
-        reject(new Error('Authentication cancelled'));
-      }
-    }, 1000);
-  });
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error signing in with Google:', error);
+    throw error;
+  }
 };
-cu
