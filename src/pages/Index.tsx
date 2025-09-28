@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
 import { VideoInput } from "@/components/VideoInput";
 import { VideoDisplay } from "@/components/VideoDisplay";
 import { CommentSection } from "@/components/CommentSection";
@@ -9,40 +8,34 @@ import { Button } from "@/components/ui/button";
 import { Coffee } from "lucide-react";
 
 const Index = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
   const [currentVideo, setCurrentVideo] = useState<{ id: string; data: any } | null>(null);
 
-  // Load video from URL parameters on component mount
+  // Load video from localStorage on component mount
   useEffect(() => {
-    const videoId = searchParams.get('video');
-    const videoDataParam = searchParams.get('data');
-    
-    if (videoId && videoDataParam) {
+    const savedVideo = localStorage.getItem('currentVideo');
+    if (savedVideo) {
       try {
-        const videoData = JSON.parse(decodeURIComponent(videoDataParam));
-        setCurrentVideo({ id: videoId, data: videoData });
+        const videoData = JSON.parse(savedVideo);
+        setCurrentVideo(videoData);
       } catch (error) {
-        console.error('Error parsing video data from URL:', error);
-        // Clear invalid URL parameters
-        setSearchParams({});
+        console.error('Error parsing video data from localStorage:', error);
+        localStorage.removeItem('currentVideo');
       }
     }
-  }, [searchParams, setSearchParams]);
+  }, []);
 
   const handleVideoLoad = (videoId: string, videoData: any) => {
-    setCurrentVideo({ id: videoId, data: videoData });
+    const videoState = { id: videoId, data: videoData };
+    setCurrentVideo(videoState);
     
-    // Update URL parameters
-    setSearchParams({
-      video: videoId,
-      data: encodeURIComponent(JSON.stringify(videoData))
-    });
+    // Save to localStorage
+    localStorage.setItem('currentVideo', JSON.stringify(videoState));
   };
 
   const handleBack = () => {
     setCurrentVideo(null);
-    // Clear URL parameters
-    setSearchParams({});
+    // Clear localStorage
+    localStorage.removeItem('currentVideo');
   };
 
   return (
