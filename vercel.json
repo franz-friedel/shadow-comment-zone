@@ -1,9 +1,13 @@
 {
-  "redirects": [
+  "headers": [
     {
       "source": "/ads.txt",
-      "destination": "https://srv.adstxtmanager.com/19390/shadowcomment.com",
-      "statusCode": 301
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/plain"
+        }
+      ]
     }
   ]
 }
