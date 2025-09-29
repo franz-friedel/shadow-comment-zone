@@ -1,5 +1,5 @@
 // src/components/GoogleButton.tsx (or inside your Auth page)
-import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client"; // correct path
+import { supabase, isSupabaseConfigured, forceAuthReset } from "@/integrations/supabase/client";
 import { useState } from "react";
 
 export function GoogleButton() {
@@ -7,19 +7,27 @@ export function GoogleButton() {
 
   const handleGoogle = async () => {
     if (!isSupabaseConfigured) {
-      console.error("[Google OAuth] Supabase not configured.");
-      alert("Auth not configured yet. Check env variables.");
+      alert("Authentication not configured. Check env variables.");
       return;
     }
     setLoading(true);
     try {
+      // Hard reset any lingering session so Google always prompts
+      await forceAuthReset();
       const redirectTo = `${window.location.origin}/auth/callback`;
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo },
+        options: {
+          redirectTo,
+          queryParams: {
+            prompt: "select_account",
+            access_type: "offline",
+            include_granted_scopes: "true",
+          },
+        },
       });
       if (error) {
-        console.error("[Google OAuth] error", error);
+        console.error("[Google OAuth] signIn error", error);
         alert("Google sign-in failed: " + error.message);
       }
     } finally {

@@ -37,11 +37,7 @@ function createStub() {
     },
   } as any;
   (window as any).__SUPABASE_STUB__ = true;
-  console.warn("[Supabase] Using stub client (missing/invalid env).", {
-    url,
-    keyPresent: !!key,
-    keyLength: key.length,
-  });
+  console.warn("[Supabase] Using stub client (missing/invalid env).", { url, keyPresent: !!key });
   return stub;
 }
 
@@ -50,11 +46,7 @@ let supabaseImpl: ReturnType<typeof createClient> | ReturnType<typeof createStub
 if (isSupabaseConfigured) {
   try {
     supabaseImpl = createClient(url, key, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-      },
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
     });
     console.info("[Supabase] Initialized.");
   } catch (e) {
@@ -66,4 +58,27 @@ if (isSupabaseConfigured) {
 }
 
 export const supabase = supabaseImpl;
+
+// Force removal of any cached session (for stuck / always-same-user cases)
+export async function forceAuthReset() {
+  try {
+    await supabase.auth.signOut().catch(() => {});
+  } catch {}
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.startsWith("sb-") || k.includes("supabase"))) keys.push(k);
+    }
+    keys.forEach((k) => localStorage.removeItem(k));
+  } catch {}
+  try {
+    sessionStorage.clear();
+  } catch {}
+  console.info("[Supabase] Auth reset executed.");
+  (window as any).__SUPABASE_LAST_RESET__ = Date.now();
+}
+
+// Expose quick debug helper
+;(window as any).forceAuthReset = forceAuthReset;
 // Optional debug (remove after): console.log("[Supabase] Initialized", url);
