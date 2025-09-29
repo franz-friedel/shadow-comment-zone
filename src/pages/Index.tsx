@@ -72,6 +72,11 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Early paint placeholder to avoid black flash */}
+      <noscript>
+        <div style={{padding:'2rem',color:'#fff',textAlign:'center'}}>Enable JavaScript to use Shadow Comments.</div>
+      </noscript>
+
       {/* Header Banner Ad */}
       <div className="w-full bg-card border-b border-border py-2">
         <div className="container mx-auto px-4">

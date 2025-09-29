@@ -3,10 +3,26 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Shadow Comments</title>
+  <title>Shadow YouTube Comments - Uncensored Discussions</title>
 </head>
 <body>
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
+  <script>
+    (function () {
+      function fallback(msg) {
+        const root = document.getElementById('root');
+        if (root && !root.firstChild) {
+          const c = document.createElement('div');
+            c.style.cssText='padding:2rem;font-family:system-ui;max-width:720px;margin:0 auto;color:#eee';
+            c.innerHTML='<h1 style="color:#f55;margin-bottom:1rem">App failed to load</h1><p>'+(msg||'Check console for details.')+'</p>';
+            root.appendChild(c);
+        }
+      }
+      window.addEventListener('error', e => fallback(e.message));
+      window.addEventListener('unhandledrejection', e => fallback(e.reason && e.reason.message));
+      setTimeout(() => fallback('Timed out waiting for bundle.'), 4000);
+    })();
+  </script>
 </body>
 </html>

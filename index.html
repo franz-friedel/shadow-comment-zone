@@ -42,18 +42,28 @@
     <!-- Adsterra Native Banner -->
     <script async="async" data-cfasync="false" src="//pl27742330.revenuecpmgate.com/3baabbac23109fdff98a672f9f31b7e8/invoke.js"></script>
   </head>
-
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    
-    <!-- ads.txt content handler -->
+    <!-- Added safe runtime fallback -->
     <script>
-      // Handle ads.txt requests
-      if (window.location.pathname === '/ads.txt') {
-        // Clear the page and show ads.txt content
-        document.documentElement.innerHTML = '<!DOCTYPE html><html><head><title>ads.txt</title><meta charset="utf-8"></head><body><pre># ads.txt file for shadowcomment.com\n# This file lists authorized digital sellers for this domain\n\n# Google AdSense\ngoogle.com, pub-3772894258095114, DIRECT, f08c47fec0942fa0\n\n# Ezoic\nezoic.com, 19390, DIRECT\n\n# Additional authorized sellers will be added by Ezoic</pre></body></html>';
-      }
+      (function () {
+        function fallback(msg) {
+          if (!document.getElementById('root')) return;
+          const root = document.getElementById('root');
+          if (root && !root.firstChild) {
+            const c = document.createElement('div');
+            c.style.cssText = 'padding:2rem;font-family:system-ui;max-width:720px;margin:0 auto;color:#eee';
+            c.innerHTML =
+              '<h1 style="color:#f55;margin-bottom:1rem">App failed to load</h1>' +
+              '<p>' + (msg || 'Check the browser console for details.') + '</p>';
+            root.appendChild(c);
+          }
+        }
+        window.addEventListener('error', e => fallback(e.message));
+        window.addEventListener('unhandledrejection', e => fallback(e.reason && e.reason.message));
+        setTimeout(() => fallback('Timed out waiting for bundle.'), 4000);
+      })();
     </script>
   </body>
 </html>
