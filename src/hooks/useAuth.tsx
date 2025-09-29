@@ -28,7 +28,7 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
-interface AuthProviderProps { children: ReactNode; }
+interface AuthProviderProps { children: ReactNode }
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
@@ -36,13 +36,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  // One-time purge of legacy mock data
+  // Purge any legacy mock artifacts once
   useEffect(() => {
     try {
-      if (localStorage.getItem('user') || localStorage.getItem('session')) {
-        localStorage.removeItem('user');
-        localStorage.removeItem('session');
-      }
+      localStorage.removeItem('user');
+      localStorage.removeItem('session');
     } catch {}
   }, []);
 
@@ -52,22 +50,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setAuthError('Supabase auth not configured.');
       return;
     }
-
-    const sub = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const sub = supabase.auth.onAuthStateChange((_evt, newSession) => {
       setSession(newSession);
       setUser(newSession?.user ?? null);
       setLoading(false);
     });
-
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
     });
-
-    return () => {
-      sub.data.subscription.unsubscribe();
-    };
+    return () => sub.data.subscription.unsubscribe();
   }, []);
 
   const authReset = useCallback(async () => {
@@ -77,9 +70,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         .filter(k => k.startsWith('sb-') || k.includes('supabase'))
         .forEach(k => localStorage.removeItem(k));
       sessionStorage.clear();
-      // Remove old custom keys if any linger
-      localStorage.removeItem('user');
-      localStorage.removeItem('session');
     } catch {}
     setUser(null);
     setSession(null);
@@ -93,14 +83,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setAuthError(null);
     setLoading(true);
     try {
-      // Force chooser: clear any existing session first
       await supabase.auth.signOut().catch(() => {});
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/`,
           queryParams: {
-            prompt: 'select_account',          // always show account chooser
+            prompt: 'select_account',
             access_type: 'offline',
             include_granted_scopes: 'true',
           },
@@ -110,7 +99,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setAuthError(error.message);
         setLoading(false);
       }
-      // Supabase will redirect; post-redirect listener updates state
     } catch (e: any) {
       setAuthError(e?.message || 'Google sign-in failed.');
       setLoading(false);
@@ -130,9 +118,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const signInWithEmail = async (email: string, password: string) => {
-    if (!isSupabaseConfigured) {
-      return { error: new Error('Auth not configured.') };
-    }
+    if (!isSupabaseConfigured) return { error: new Error('Auth not configured.') };
     setAuthError(null);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) setAuthError(error.message);
@@ -144,9 +130,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const signUpWithEmail = async (email: string, password: string, name?: string) => {
-    if (!isSupabaseConfigured) {
-      return { error: new Error('Auth not configured.') };
-    }
+    if (!isSupabaseConfigured) return { error: new Error('Auth not configured.') };
     setAuthError(null);
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -173,9 +157,5 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     authReset,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
