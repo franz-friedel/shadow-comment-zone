@@ -85,11 +85,11 @@ const Index = () => {
         </div>
         
         {/* Move search box to the very top */}
-        <div className="w-full max-w-xl mt-4">
+        <div className="w-full max-w-xl mt-2">
           {/* ...SearchBox component... */}
         </div>
 
-        {/* Place trends below search box */}
+        {/* YouTube trends directly below the search box */}
         <YouTubeTrends />
 
         {!currentVideo ? (
