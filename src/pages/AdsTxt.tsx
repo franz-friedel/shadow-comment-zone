@@ -22,6 +22,3 @@ ezoic.com, 19390, DIRECT
 };
 
 export default AdsTxt;
-};
-
-export default AdsTxt;
