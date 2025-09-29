@@ -6,6 +6,7 @@ import { UserMenu } from "@/components/UserMenu";
 import { AdSenseAd } from "@/components/AdSenseAd";
 import { Button } from "@/components/ui/button";
 import { Coffee } from "lucide-react";
+import YouTubeTrends from "@/components/YouTubeTrends";
 
 const Index = () => {
   const [currentVideo, setCurrentVideo] = useState<{ id: string; data: any } | null>(null);
@@ -83,6 +84,14 @@ const Index = () => {
           <div id="container-3baabbac23109fdff98a672f9f31b7e8"></div>
         </div>
         
+        {/* Move search box to the very top */}
+        <div className="w-full max-w-xl mt-4">
+          {/* ...SearchBox component... */}
+        </div>
+
+        {/* Place trends below search box */}
+        <YouTubeTrends />
+
         {!currentVideo ? (
           <div className="flex min-h-[80vh] items-center justify-center">
             <VideoInput onVideoLoad={handleVideoLoad} />
