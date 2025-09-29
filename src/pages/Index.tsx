@@ -10,6 +10,7 @@ import { YouTubeTrends } from "@/components/YouTubeTrends";
 
 const Index = () => {
   const [currentVideo, setCurrentVideo] = useState<{ id: string; data: any } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Load video from localStorage on component mount
   useEffect(() => {
@@ -25,6 +26,21 @@ const Index = () => {
     }
   }, []);
 
+  useEffect(() => {
+    const onError = (e: ErrorEvent) => {
+      setError(e.message || 'Unexpected error');
+    };
+    const onRejection = (e: PromiseRejectionEvent) => {
+      setError((e.reason && e.reason.message) || 'Unexpected async error');
+    };
+    window.addEventListener('error', onError);
+    window.addEventListener('unhandledrejection', onRejection);
+    return () => {
+      window.removeEventListener('error', onError);
+      window.removeEventListener('unhandledrejection', onRejection);
+    };
+  }, []);
+
   const handleVideoLoad = (videoId: string, videoData: any) => {
     const videoState = { id: videoId, data: videoData };
     setCurrentVideo(videoState);
@@ -38,6 +54,21 @@ const Index = () => {
     // Clear localStorage
     localStorage.removeItem('currentVideo');
   };
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background text-center px-6">
+        <h1 className="text-2xl font-bold mb-4 text-red-500">Something went wrong</h1>
+        <p className="text-sm text-muted-foreground mb-6">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm"
+        >
+          Reload
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
