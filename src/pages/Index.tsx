@@ -6,7 +6,7 @@ import { UserMenu } from "@/components/UserMenu";
 import { AdSenseAd } from "@/components/AdSenseAd";
 import { Button } from "@/components/ui/button";
 import { Coffee } from "lucide-react";
-import YouTubeTrends from "@/components/YouTubeTrends";
+import { YouTubeTrends } from "@/components/YouTubeTrends";
 
 const Index = () => {
   const [currentVideo, setCurrentVideo] = useState<{ id: string; data: any } | null>(null);
