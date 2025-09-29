@@ -35,6 +35,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [authProcessing, setAuthProcessing] = useState(false);
 
   // Purge any legacy mock artifacts once
   useEffect(() => {
@@ -42,6 +43,30 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       localStorage.removeItem('user');
       localStorage.removeItem('session');
     } catch {}
+  }, []);
+
+  // Parse and surface OAuth errors in the callback URL (?error=... or hash)
+  useEffect(() => {
+    const parseErrorParams = (s: string) => {
+      const p = new URLSearchParams(s);
+      const error = p.get('error') || p.get('error_code');
+      const desc = p.get('error_description');
+      return error ? decodeURIComponent(desc || error) : null;
+    };
+
+    const searchErr = parseErrorParams(window.location.search);
+    const hashErr = window.location.hash.includes('error')
+      ? parseErrorParams(window.location.hash.replace(/^#/, ''))
+      : null;
+
+    const finalErr = searchErr || hashErr;
+    if (finalErr) {
+      setAuthError(`OAuth Error: ${finalErr}`);
+      // Clean URL (remove sensitive/error params)
+      const cleanUrl = window.location.origin + window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+      console.warn('[Auth] OAuth error detected:', finalErr);
+    }
   }, []);
 
   useEffect(() => {
@@ -73,17 +98,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     } catch {}
     setUser(null);
     setSession(null);
+    setAuthProcessing(false);
   }, []);
 
   const signInWithGoogle = async () => {
+    if (authProcessing) return;
     if (!isSupabaseConfigured) {
       setAuthError('Auth not configured.');
       return;
     }
     setAuthError(null);
+    setAuthProcessing(true);
     setLoading(true);
     try {
-      await supabase.auth.signOut().catch(() => {});
+      // Do NOT signOut first; let Supabase manage PKCE verifier continuity
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -98,10 +126,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       if (error) {
         setAuthError(error.message);
         setLoading(false);
+        setAuthProcessing(false);
+        console.error('[Auth] Google OAuth initiation failed:', error);
       }
+      // On success Supabase redirects; post-redirect listener will update state
     } catch (e: any) {
       setAuthError(e?.message || 'Google sign-in failed.');
       setLoading(false);
+      setAuthProcessing(false);
+      console.error('[Auth] Google sign-in exception:', e);
     }
   };
 
