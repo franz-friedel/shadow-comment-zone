@@ -265,10 +265,10 @@ const Auth = () => {
                   href="https://www.buymeacoffee.com/yourname"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2"
+                  className="inline-flex items-center gap-2"
                 >
                   <Coffee className="h-4 w-4" />
-                  Buy me a coffee
+                  <span>Buy me a coffee</span>
                 </a>
               </Button>
             </div>

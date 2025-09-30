@@ -8,31 +8,28 @@ if (!url || !key) {
   throw new Error("Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY");
 }
 
-// Guard for build / SSR
 const storage = typeof window !== "undefined" ? window.localStorage : undefined;
 
 export const supabase = createClient(url, key, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true, // let SDK perform initial OAuth code exchange
+    detectSessionInUrl: true,
     storage,
   },
 });
 
-// Optional diagnostics (visible in browser console)
+// Diagnostics (optional)
 if (typeof window !== "undefined") {
   (window as any).__SUPABASE_INFO__ = {
     url,
     anonKeyPrefix: key.slice(0, 8),
     ts: Date.now(),
   };
-
   supabase.auth.onAuthStateChange((event, session) => {
     console.log("[Supabase Auth]", event, "user?", !!session?.user);
     (window as any).__LAST_AUTH_EVENT__ = { event, hasUser: !!session?.user, at: Date.now() };
   });
-
   (window as any).forceSessionCheck = async (): Promise<Session | null> => {
     const { data } = await supabase.auth.getSession();
     console.log("[forceSessionCheck] user?", !!data.session?.user);
@@ -40,20 +37,23 @@ if (typeof window !== "undefined") {
   };
 }
 
-/**
- * Force clear local auth (use only for debugging).
- */
 export async function forceAuthReset() {
-  try {
-    await supabase.auth.signOut();
-  } catch {}
+  try { await supabase.auth.signOut(); } catch {}
   try {
     if (typeof window !== "undefined") {
       Object.keys(localStorage)
-        .filter((k) => k.startsWith("sb-") || k.includes("supabase"))
-        .forEach((k) => localStorage.removeItem(k));
+        .filter(k => k.startsWith("sb-") || k.includes("supabase"))
+        .forEach(k => localStorage.removeItem(k));
       sessionStorage.clear();
     }
+  } catch {}
+  console.info("[Supabase] Local auth state cleared.");
+}
+
+export async function ensureSession() {
+  const { data } = await supabase.auth.getSession();
+  return data.session;
+}
   } catch {}
   console.info("[Supabase] Local auth state cleared.");
 }
