@@ -249,29 +249,29 @@ const Auth = () => {
               By {isLogin ? 'signing in' : 'creating an account'}, you agree to our terms of service and privacy policy.
             </p>
 
+            {/* Buy me a coffee (replaced block) */}
             <div className="flex justify-center mt-6">
-              <Button 
-                asChild 
-                variant="outline" 
-                size="sm"
-                className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white border-0"
-              >
-                <a 
-                  href="https://buymeacoffee.com/shadowcomments" 
-                  target="_blank" 
+              <Button asChild variant="outline" size="sm">
+                <a
+                  href="https://www.buymeacoffee.com/yourname"
+                  target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2"
+                  className="inline-flex items-center gap-2"
                 >
                   <Coffee className="h-4 w-4" />
-                  Buy me a coffee
+                  <span>Buy me a coffee</span>
                 </a>
               </Button>
             </div>
+
           </form>
         </CardContent>
       </Card>
     </div>
   );
+};
+
+export default Auth;
 };
 
 export default Auth;
