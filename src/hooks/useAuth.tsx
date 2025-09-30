@@ -46,28 +46,31 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     } catch {}
   }, []);
 
-  // Parse and surface OAuth errors in the callback URL (?error=... or hash)
+  // Parse OAuth errors + attempt a late session fetch if code exchange was delayed
   useEffect(() => {
-    const parseErrorParams = (s: string) => {
-      const p = new URLSearchParams(s);
-      const error = p.get('error') || p.get('error_code');
-      const desc = p.get('error_description');
-      return error ? decodeURIComponent(desc || error) : null;
-    };
-
-    const searchErr = parseErrorParams(window.location.search);
-    const hashErr = window.location.hash.includes('error')
-      ? parseErrorParams(window.location.hash.replace(/^#/, ''))
-      : null;
-
-    const finalErr = searchErr || hashErr;
-    if (finalErr) {
-      setAuthError(`OAuth Error: ${finalErr}`);
-      // Clean URL (remove sensitive/error params)
-      const cleanUrl = window.location.origin + window.location.pathname;
-      window.history.replaceState({}, document.title, cleanUrl);
-      console.warn('[Auth] OAuth error detected:', finalErr);
+    const params = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const readErr = (ps: URLSearchParams) =>
+      ps.get('error_description') || ps.get('error') || ps.get('error_code');
+    const err = readErr(params) || readErr(hashParams);
+    if (err) {
+      setAuthError(`OAuth Error: ${decodeURIComponent(err)}`);
+      const clean = window.location.origin + window.location.pathname;
+      window.history.replaceState({}, document.title, clean);
+    } else {
+      // If no session yet shortly after mount, trigger an extra fetch (some browsers delay storage write)
+      const timer = setTimeout(async () => {
+        if (!session) {
+          const { data } = await supabase.auth.getSession();
+            if (data.session) {
+              setSession(data.session);
+              setUser(data.session.user);
+            }
+        }
+      }, 900);
+      return () => clearTimeout(timer);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -99,6 +102,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     } catch {}
     setUser(null);
     setSession(null);
+    setAuthError(null);
     setAuthProcessing(false);
   }, []);
 
@@ -110,9 +114,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
     setAuthError(null);
     setAuthProcessing(true);
-    // Do NOT signOut here – it breaks the PKCE verifier that Supabase stores
+    setLoading(true);
     try {
-      console.info('[Auth] Starting Google OAuth', { redirectTo: redirectBase });
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -125,15 +128,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         },
       });
       if (error) {
-        console.error('[Auth] OAuth init error:', error);
         setAuthError(error.message);
         setAuthProcessing(false);
+        setLoading(false);
       }
-      // On success browser navigates; listener updates state after redirect.
     } catch (e: any) {
-      console.error('[Auth] OAuth exception:', e);
       setAuthError(e?.message || 'Google sign-in failed.');
       setAuthProcessing(false);
+      setLoading(false);
     }
   };
 
@@ -169,4 +171,25 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       password,
       options: { data: { name } },
     });
-    if
+    if (error) setAuthError(error.message);
+    if (data?.session) {
+      setSession(data.session);
+      setUser(data.session.user);
+    }
+    return { error };
+  };
+
+  const value: AuthContextType = {
+    user,
+    session,
+    loading,
+    authError,
+    signInWithGoogle,
+    signOut,
+    signInWithEmail,
+    signUpWithEmail,
+    authReset,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};

@@ -1,30 +1,30 @@
 /// <reference types="vite/client" />
 import { createClient } from "@supabase/supabase-js";
 
-// Fallbacks (public anon key is safe to embed)
-const FALLBACK_SUPABASE_URL = "https://zsfwcfysslyiemzzvwwg.supabase.co";
-const FALLBACK_SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpzZndjZnlzc2x5aWVtenp2d3dnIiwicm9zZSI6ImFub24iLCJpYXQiOjE3NTg3MzUxNDcsImV4cCI6MjA3NDMxMTE0N30.ATHSN8DQi2h21W1_fcCXwHouy-Q-ynNrSBc8g6dQZn4";
+const url = (import.meta.env.VITE_SUPABASE_URL || "").trim();
+const anon =
+  (import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "").trim();
 
-// Read env
-const rawUrl = import.meta.env.VITE_SUPABASE_URL;
-const rawKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+if (!url || !anon) {
+  console.error("[Supabase] Missing env vars", { urlPresent: !!url, anonPresent: !!anon });
+  throw new Error("Supabase env vars missing.");
+}
 
-// Resolve (use fallback if env missing)
-const url = (rawUrl && rawUrl.trim()) || FALLBACK_SUPABASE_URL;
-const key = (rawKey && rawKey.trim()) || FALLBACK_SUPABASE_ANON_KEY;
+export const isSupabaseConfigured = true;
 
-// Expose debug info
-;(window as any).__SUPABASE_DEBUG__ = {
-  rawUrl,
-  rawKeyPresent: !!rawKey,
-  resolvedUrl: url,
-  resolvedKeyFirst10: key.slice(0, 10),
-  resolvedKeyLength: key.length,
+export const supabase = createClient(url, anon, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+});
+
+// Simple debug exposure (optional)
+;(window as any).__SUPABASE_INFO__ = {
+  url,
+  anonKeyPrefix: anon.slice(0, 8),
 };
-
-// Simple validity check
-const isSupabaseConfigured =
   !!url &&
   !!key &&
   url.startsWith("https://") &&
