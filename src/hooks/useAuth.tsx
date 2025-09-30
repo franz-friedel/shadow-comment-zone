@@ -26,6 +26,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // This listener is the core of Supabase auth.
+    // It fires on initial load and whenever the auth state changes.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -42,6 +44,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
+        // This URL must be whitelisted in your Supabase dashboard
         redirectTo: window.location.origin,
       },
     });
