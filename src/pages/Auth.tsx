@@ -21,8 +21,6 @@ const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  console.log('Auth component - loading state:', loading);
-
   const [isLogin, setIsLogin] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -59,7 +57,7 @@ const Auth = () => {
         provider: "google",
         options: { redirectTo: `${window.location.origin}/auth/callback` },
       });
-      // Redirect to Google happens; callback page will handle exchange.
+      // Redirect occurs; /auth/callback handles exchange.
     } catch (e: any) {
       setGoogleLoading(false);
       toast({
@@ -70,7 +68,7 @@ const Auth = () => {
     }
   }
 
-  // Surface OAuth errors returned on landing (optional)
+  // Surface OAuth errors if they were appended to URL (safety)
   useEffect(() => {
     const qp = new URLSearchParams(window.location.search);
     const hp = new URLSearchParams(window.location.hash.replace(/^#/, ""));
@@ -249,7 +247,7 @@ const Auth = () => {
               By {isLogin ? 'signing in' : 'creating an account'}, you agree to our terms of service and privacy policy.
             </p>
 
-            {/* Buy me a coffee (replaced block) */}
+            {/* Buy me a coffee */}
             <div className="flex justify-center mt-6">
               <Button asChild variant="outline" size="sm">
                 <a
@@ -263,12 +261,14 @@ const Auth = () => {
                 </a>
               </Button>
             </div>
-
           </form>
         </CardContent>
       </Card>
     </div>
   );
+};
+
+export default Auth;
 };
 
 export default Auth;

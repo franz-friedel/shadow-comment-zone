@@ -4,7 +4,6 @@ import { createClient } from "@supabase/supabase-js";
 const url = import.meta.env.VITE_SUPABASE_URL!;
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY!;
 
-// We handle the OAuth code exchange ourselves, so detectSessionInUrl = false.
 export const supabase = createClient(url, key, {
   auth: {
     persistSession: true,
@@ -124,4 +123,5 @@ export async function forceAuthReset() {
 // Optional debug (remove after): console.log("[Supabase] Initialized", url);
 // Expose quick debug helper
 ;(window as any).forceAuthReset = forceAuthReset;
+// Optional debug (remove after): console.log("[Supabase] Initialized", url);
 // Optional debug (remove after): console.log("[Supabase] Initialized", url);
