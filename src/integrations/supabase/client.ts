@@ -5,7 +5,7 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error("Supabase URL and Anon Key are required. Check your .env.local file.");
+  throw new Error("Supabase URL and Anon Key are required. Check your .env.local file and restart the dev server.");
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -15,21 +15,22 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true, // This is crucial for the OAuth flow
   },
 });
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-  },
-});
-
-// Simple debug exposure (optional)
-;(window as any).__SUPABASE_INFO__ = {
-  url,
-  anonKeyPrefix: anon.slice(0, 8),
-};
-  !!url &&
   !!key &&
   url.startsWith("https://") &&
   url.includes(".supabase.co") &&
   key.length > 20;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error("Supabase URL and Anon Key are required. Check your .env.local file.");
+}
+
+// Removed duplicate export of supabase to avoid redeclaration error
+
+// Simple debug exposure (optional)
+;(window as any).__SUPABASE_INFO__ = {
+  url: supabaseUrl,
+  anonKeyPrefix: supabaseAnonKey.slice(0, 8),
+};
 
 function createStub() {
   const configError = new Error("Supabase not configured.");
