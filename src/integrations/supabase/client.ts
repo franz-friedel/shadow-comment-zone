@@ -4,79 +4,27 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL!;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY!;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: false,
-  },
-});
-  },
-});
-    detectSessionInUrl: true, // AUTO strategy
-    storage,
-  },
-});
+// Helper: check if Supabase is configured
+const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
 
-// Diagnostics (optional)
-if (typeof window !== "undefined") {
-  (window as any).__SUPABASE_INFO__ = { url, anonKeyPrefix: key.slice(0, 8), ts: Date.now() };
-  supabase.auth.onAuthStateChange((event, session) => {
-    console.log("[Supabase AuthState]", event, "user?", !!session?.user);
-    (window as any).__LAST_AUTH_EVENT__ = { event, hasUser: !!session?.user, at: Date.now() };
-  });
-  (window as any).forceSessionCheck = async (): Promise<Session | null> => {
-    const { data } = await supabase.auth.getSession();
-    console.log("[forceSessionCheck] user?", !!data.session?.user);
-    return data.session;
+// Stub implementation for Supabase (minimal, extend as needed)
+function createStub() {
+  return {
+    auth: {
+      signOut: async () => {},
+      getSession: async () => ({ data: { session: null } }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+    },
   };
 }
 
-export async function forceAuthReset() {
-  try { await supabase.auth.signOut(); } catch {}
-  if (typeof window !== "undefined") {
-    try {
-      Object.keys(localStorage)
-        .filter(k => k.startsWith("sb-") || k.includes("supabase"))
-        .forEach(k => localStorage.removeItem(k));
-      sessionStorage.clear();
-    } catch {}
-  }
-  console.info("[Supabase] Local auth cleared.");
-}
-
-export async function ensureSession() {
-  const { data } = await supabase.auth.getSession();
-  return data.session;
-}
-        .forEach(k => localStorage.removeItem(k));
-      sessionStorage.clear();
-    }
-  } catch {}
-  console.info("[Supabase] Local auth cleared.");
-}
-
-/**
- * Ensure we have the latest session (optional helper).
- */
-export async function ensureSession() {
-  const { data } = await supabase.auth.getSession();
-  return data.session;
-}
-  return data.session;
-}
-      onAuthStateChange: (_cb: any) => ({ data: { subscription: { unsubscribe: () => {} } } }),
-    },
-  } as any;
-  (window as any).__SUPABASE_STUB__ = true;
-  console.warn("[Supabase] Using stub client (both url & key missing).", {
-    rawUrl,
-    rawKeyPresent: !!rawKey,
-  });
-  return stub;
-}
-
 let supabaseImpl: ReturnType<typeof createClient> | ReturnType<typeof createStub>;
+
+// Use the env variables directly for url/key
+const url = supabaseUrl;
+const key = supabaseAnonKey;
+const rawUrl = supabaseUrl;
+const rawKey = supabaseAnonKey;
 
 if (isSupabaseConfigured) {
   try {
@@ -84,7 +32,7 @@ if (isSupabaseConfigured) {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
     });
     console.info("[Supabase] Initialized (resolved env).");
-    (window as any).__SUPABASE_STUB__ = false;
+    if (typeof window !== "undefined") (window as any).__SUPABASE_STUB__ = false;
   } catch (e) {
     console.error("[Supabase] Initialization failed; falling back to stub.", e);
     supabaseImpl = createStub();
@@ -100,7 +48,7 @@ if (isSupabaseConfigured) {
       supabaseImpl = createClient(url, key, {
         auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
       });
-      (window as any).__SUPABASE_STUB__ = false;
+      if (typeof window !== "undefined") (window as any).__SUPABASE_STUB__ = false;
     } catch (e) {
       console.error("[Supabase] Fallback init failed; using stub.", e);
       supabaseImpl = createStub();
@@ -110,6 +58,20 @@ if (isSupabaseConfigured) {
 
 export const supabase = supabaseImpl;
 export { isSupabaseConfigured };
+
+// Diagnostics (optional)
+if (typeof window !== "undefined") {
+  (window as any).__SUPABASE_INFO__ = { url: supabaseUrl, anonKeyPrefix: supabaseAnonKey.slice(0, 8), ts: Date.now() };
+  supabase.auth.onAuthStateChange((event, session) => {
+    console.log("[Supabase AuthState]", event, "user?", !!session?.user);
+    (window as any).__LAST_AUTH_EVENT__ = { event, hasUser: !!session?.user, at: Date.now() };
+  });
+  (window as any).forceSessionCheck = async (): Promise<any | null> => {
+    const { data } = await supabase.auth.getSession();
+    console.log("[forceSessionCheck] user?", !!data.session?.user);
+    return data.session;
+  };
+}
 
 // Force removal of any cached session (for stuck / always-same-user cases)
 export async function forceAuthReset() {
@@ -128,13 +90,16 @@ export async function forceAuthReset() {
     sessionStorage.clear();
   } catch {}
   console.info("[Supabase] Auth reset executed.");
-  (window as any).__SUPABASE_LAST_RESET__ = Date.now();
+  if (typeof window !== "undefined") (window as any).__SUPABASE_LAST_RESET__ = Date.now();
 }
 
 // Expose quick debug helper
-;(window as any).forceAuthReset = forceAuthReset;
-// Optional debug (remove after): console.log("[Supabase] Initialized", url);
-// Expose quick debug helper
-;(window as any).forceAuthReset = forceAuthReset;
-// Optional debug (remove after): console.log("[Supabase] Initialized", url);
-// Optional debug (remove after): console.log("[Supabase] Initialized", url);
+if (typeof window !== "undefined") {
+  (window as any).forceAuthReset = forceAuthReset;
+}
+
+// Ensure we have the latest session (optional helper)
+export async function ensureSession() {
+  const { data } = await supabase.auth.getSession();
+  return data.session;
+}

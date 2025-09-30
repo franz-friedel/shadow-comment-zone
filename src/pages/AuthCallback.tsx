@@ -1,9 +1,13 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
+  const [status, setStatus] = useState("Signing you in…");
+  const [error, setError] = useState<string | null>(null);
+  const finished = useRef(false);
+  const exchanged = useRef(false);
 
   useEffect(() => {
     (async () => {
@@ -17,25 +21,49 @@ export default function AuthCallback() {
         return;
       }
 
-      if (code) {
-        const { error: exErr } = await supabase.auth.exchangeCodeForSession(code);
-        if (exErr) {
-          console.error("exchangeCodeForSession error:", exErr.message);
-          navigate("/auth");
-          return;
-        }
+      // If using PKCE flow, Supabase should handle the session automatically after redirect.
+      // If you need to manually check for a session, do so here.
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        console.error("No session found after redirect");
+        navigate("/auth");
+        return;
       }
 
-      const { data } = await supabase.auth.getSession();
-      console.log("Session after exchange:", !!data.session);
+      console.log("Session after redirect:", !!data.session);
 
       navigate("/");
     })();
   }, [navigate]);
 
-  return <div className="p-4">Signing you in…</div>;
-}
-      const { data: listener } = supabase.auth.onAuthStateChange((_evt, session) => {
+  // --- Remove the old return and move the advanced logic inside useEffect below ---
+
+  useEffect(() => {
+    (async () => {
+      const url = new URL(window.location.href);
+      const code = url.searchParams.get("code");
+      const errorParam = url.searchParams.get("error");
+
+      if (errorParam) {
+        console.error("OAuth error:", errorParam);
+        navigate("/auth");
+        return;
+      }
+
+      // If using PKCE flow, Supabase should handle the session automatically after redirect.
+      // If you need to manually check for a session, do so here.
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        console.error("No session found after redirect");
+        // Continue to advanced logic below instead of returning
+      } else {
+        console.log("Session after redirect:", !!data.session);
+        navigate("/");
+        return;
+      }
+
+      // Advanced logic for handling session and code exchange
+      const listener = supabase.auth.onAuthStateChange((_evt, session) => {
         if (session?.user && !finished.current) {
           console.log("[AuthCallback] Session arrived via listener.");
           successRedirect();
@@ -47,29 +75,20 @@ export default function AuthCallback() {
       if (code) {
         manualTimer = window.setTimeout(async () => {
           if (exchanged.current || finished.current) return;
-            setStatus("Manual code exchange attempt…");
-            console.log("[AuthCallback] Manual exchange fallback starting.");
-            exchanged.current = true;
-            const { error: exErr } = await supabase.auth.exchangeCodeForSession(code);
-            if (exErr) {
-              console.error("[AuthCallback] Manual exchange failed:", exErr.message);
-              setError("Manual exchange failed: " + exErr.message);
-              setStatus("Returning to /auth …");
-              cleanup();
-              setTimeout(() => navigate("/auth", { replace: true }), 2500);
-              return;
-            }
-            // Check again
-            const { data } = await supabase.auth.getSession();
-            if (data.session?.user) {
-              console.log("[AuthCallback] Manual exchange success.");
-              successRedirect();
-            } else {
-              setError("Exchange succeeded but no session persisted.");
-              setStatus("Returning to /auth …");
-              cleanup();
-              setTimeout(() => navigate("/auth", { replace: true }), 2500);
-            }
+          setStatus("Waiting for session…");
+          console.log("[AuthCallback] Manual exchange fallback: checking session again.");
+          exchanged.current = true;
+          // Check again
+          const { data } = await supabase.auth.getSession();
+          if (data.session?.user) {
+            console.log("[AuthCallback] Session found on manual check.");
+            successRedirect();
+          } else {
+            setError("No session found after waiting.");
+            setStatus("Returning to /auth …");
+            cleanup();
+            setTimeout(() => navigate("/auth", { replace: true }), 2500);
+          }
         }, 900); // ~1 second
       }
 
@@ -98,7 +117,7 @@ export default function AuthCallback() {
       }
 
       function cleanup() {
-        listener.subscription.unsubscribe();
+        listener.data.subscription.unsubscribe();
         if (manualTimer) clearTimeout(manualTimer);
         clearTimeout(timeout);
       }
