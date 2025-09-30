@@ -36,6 +36,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const [authProcessing, setAuthProcessing] = useState(false);
+  const redirectBase = import.meta.env.VITE_SUPABASE_REDIRECT_URL || `${window.location.origin}/`;
 
   // Purge any legacy mock artifacts once
   useEffect(() => {
@@ -109,13 +110,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
     setAuthError(null);
     setAuthProcessing(true);
-    setLoading(true);
+    // Do NOT signOut here – it breaks the PKCE verifier that Supabase stores
     try {
-      // Do NOT signOut first; let Supabase manage PKCE verifier continuity
+      console.info('[Auth] Starting Google OAuth', { redirectTo: redirectBase });
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/`,
+          redirectTo: redirectBase,
           queryParams: {
             prompt: 'select_account',
             access_type: 'offline',
@@ -124,17 +125,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         },
       });
       if (error) {
+        console.error('[Auth] OAuth init error:', error);
         setAuthError(error.message);
-        setLoading(false);
         setAuthProcessing(false);
-        console.error('[Auth] Google OAuth initiation failed:', error);
       }
-      // On success Supabase redirects; post-redirect listener will update state
+      // On success browser navigates; listener updates state after redirect.
     } catch (e: any) {
+      console.error('[Auth] OAuth exception:', e);
       setAuthError(e?.message || 'Google sign-in failed.');
-      setLoading(false);
       setAuthProcessing(false);
-      console.error('[Auth] Google sign-in exception:', e);
     }
   };
 
@@ -170,25 +169,4 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       password,
       options: { data: { name } },
     });
-    if (error) setAuthError(error.message);
-    if (data?.session) {
-      setSession(data.session);
-      setUser(data.session.user);
-    }
-    return { error };
-  };
-
-  const value: AuthContextType = {
-    user,
-    session,
-    loading,
-    authError,
-    signInWithGoogle,
-    signOut,
-    signInWithEmail,
-    signUpWithEmail,
-    authReset,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
+    if
