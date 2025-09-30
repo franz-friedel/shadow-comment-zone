@@ -52,9 +52,7 @@ const Auth = () => {
   async function signInWithGoogle() {
     await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
   }
 
@@ -146,7 +144,10 @@ const Auth = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-4"
+          >
             {!isLogin && (
               <div className="space-y-2">
                 <Label htmlFor="name">Name</Label>
@@ -212,7 +213,7 @@ const Auth = () => {
               </div>
             </div>
 
-            {/* Google Sign In (updated) */}
+            {/* Google Sign In Button (updated) */}
             <Button
               type="button"
               onClick={signInWithGoogle}
@@ -231,7 +232,7 @@ const Auth = () => {
               By {isLogin ? 'signing in' : 'creating an account'}, you agree to our terms of service and privacy policy.
             </p>
 
-            {/* Buy me a coffee (fixed) */}
+            {/* Buy me a coffee (fixed block) */}
             <div className="flex justify-center mt-6">
               <Button asChild variant="outline" size="sm">
                 <a
