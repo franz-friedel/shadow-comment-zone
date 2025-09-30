@@ -17,7 +17,7 @@ const authSchema = z.object({
 });
 
 const Auth = () => {
-  const { user, signInWithEmail, signUpWithEmail, loading } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -53,12 +53,17 @@ const Auth = () => {
     if (googleLoading) return;
     setGoogleLoading(true);
     try {
-      await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
+      const authAny = supabase.auth as any;
+      if (authAny?.signInWithOAuth && typeof authAny.signInWithOAuth === 'function') {
+        await authAny.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: `${window.location.origin}/auth/callback`,
+          },
+        });
+      } else {
+        throw new Error("OAuth sign-in not available in this environment");
+      }
     } catch (e: any) {
       toast({
         title: "Google sign-in failed",
@@ -68,6 +73,36 @@ const Auth = () => {
       setGoogleLoading(false);
     }
   }
+
+  // Local fallback implementation since signUpWithEmail is not provided by the AuthContext type
+    async function signUpWithEmail(email: string, password: string, name?: string) {
+      const auth: any = supabase.auth;
+      if (auth && typeof auth.signUp === 'function') {
+        const { data, error } = await auth.signUp({
+          email,
+          password,
+          options: name ? { data: { name } } : undefined,
+        });
+        return { data, error };
+      }
+      return {
+        data: null,
+        error: new Error('signUp method not available in this auth client'),
+      };
+    }
+  
+    // Local email/password sign-in helper (since not exposed via AuthContext type)
+    async function signInWithEmail(email: string, password: string) {
+      const auth: any = supabase.auth;
+      if (auth && typeof auth.signInWithPassword === 'function') {
+        const { data, error } = await auth.signInWithPassword({ email, password });
+        return { data, error };
+      }
+      return {
+        data: null,
+        error: new Error('signInWithPassword method not available in this auth client'),
+      };
+    }
 
   // Surface OAuth errors if they were appended to URL (safety)
   useEffect(() => {
