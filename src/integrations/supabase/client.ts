@@ -7,14 +7,14 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("Supabase URL and Anon Key are required. Check your .env.local file and restart the dev server.");
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+// (Removed duplicate export of supabase to avoid redeclaration error)
+const initialSupabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true, // This is crucial for the OAuth flow
   },
 });
-// });
 // Setup for fallback/stub logic
 const rawUrl = supabaseUrl;
 const rawKey = supabaseAnonKey;
