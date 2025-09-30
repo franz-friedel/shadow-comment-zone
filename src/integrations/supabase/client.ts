@@ -1,20 +1,20 @@
 /// <reference types="vite/client" />
 import { createClient } from "@supabase/supabase-js";
 
-const url = (import.meta.env.VITE_SUPABASE_URL || "").trim();
-const anon =
-  (import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "").trim();
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!url || !anon) {
-  console.error("[Supabase] Missing env vars", { urlPresent: !!url, anonPresent: !!anon });
-  throw new Error("Supabase env vars missing.");
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error("Supabase URL and Anon Key are required. Check your .env.local file.");
 }
 
-export const isSupabaseConfigured = true;
-
-export const supabase = createClient(url, anon, {
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true, // This is crucial for the OAuth flow
+  },
+});
     autoRefreshToken: true,
     detectSessionInUrl: true,
   },

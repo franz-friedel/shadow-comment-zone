@@ -8,8 +8,8 @@ import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const App = () => (
-  <Router>
-    <AuthProvider>
+  <AuthProvider>
+    <Router>
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/auth" element={<Auth />} />
@@ -18,8 +18,8 @@ const App = () => (
       </Routes>
       <Toaster />
       <Sonner />
-    </AuthProvider>
-  </Router>
+    </Router>
+  </AuthProvider>
 );
 
 export default App;
