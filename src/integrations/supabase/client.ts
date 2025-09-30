@@ -1,18 +1,18 @@
 /// <reference types="vite/client" />
-import { createClient, type Session } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 
-const url = import.meta.env.VITE_SUPABASE_URL;
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const url = import.meta.env.VITE_SUPABASE_URL!;
+const key = import.meta.env.VITE_SUPABASE_ANON_KEY!;
 
-if (!url || !key) throw new Error("Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY");
-
-// Guard for build (SSR)
-const storage = typeof window !== "undefined" ? window.localStorage : undefined;
-
+// We'll do the OAuth code exchange ourselves on /auth/callback
 export const supabase = createClient(url, key, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
+    detectSessionInUrl: false,
+    storage: localStorage,
+  },
+});
     detectSessionInUrl: true, // AUTO strategy
     storage,
   },

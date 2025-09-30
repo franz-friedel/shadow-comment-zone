@@ -1,40 +1,40 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
-  const [status, setStatus] = useState("Processing OAuth response…");
-  const [error, setError] = useState<string | null>(null);
-  const exchanged = useRef(false);
-  const finished = useRef(false);
 
   useEffect(() => {
     (async () => {
       const url = new URL(window.location.href);
-      const oauthError = url.searchParams.get("error");
+      const error = url.searchParams.get("error");
       const code = url.searchParams.get("code");
-      const full = url.toString();
-      console.log("[AuthCallback] Start", { oauthError, hasCode: !!code, full });
 
-      if (oauthError) {
-        setError(`OAuth error: ${oauthError}`);
-        setStatus("Redirecting back to /auth …");
-        setTimeout(() => navigate("/auth", { replace: true }), 1500);
+      if (error) {
+        console.error("OAuth error:", error);
+        navigate("/auth");
         return;
       }
 
-      // First attempt: rely on detectSessionInUrl (already happened before render)
-      setStatus("Waiting for session from automatic exchange…");
-
-      const checkImmediate = await supabase.auth.getSession();
-      if (checkImmediate.data.session?.user) {
-        console.log("[AuthCallback] Immediate session found.");
-        successRedirect();
-        return;
+      if (code) {
+        const { error: exErr } = await supabase.auth.exchangeCodeForSession(code);
+        if (exErr) {
+          console.error("exchangeCodeForSession error:", exErr.message);
+          navigate("/auth");
+          return;
+        }
       }
 
-      // Listen for late arrival
+      const { data } = await supabase.auth.getSession();
+      console.log("Session after exchange:", !!data.session);
+
+      navigate("/");
+    })();
+  }, [navigate]);
+
+  return <div className="p-4">Signing you in…</div>;
+}
       const { data: listener } = supabase.auth.onAuthStateChange((_evt, session) => {
         if (session?.user && !finished.current) {
           console.log("[AuthCallback] Session arrived via listener.");
