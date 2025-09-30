@@ -8,13 +8,14 @@ if (!url || !key) {
   throw new Error("Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY");
 }
 
+// Guard for SSR / build
 const storage = typeof window !== "undefined" ? window.localStorage : undefined;
 
 export const supabase = createClient(url, key, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true,
+    detectSessionInUrl: true, // let SDK handle the OAuth code on callback
     storage,
   },
 });
@@ -22,21 +23,26 @@ export const supabase = createClient(url, key, {
 // Diagnostics (optional)
 if (typeof window !== "undefined") {
   (window as any).__SUPABASE_INFO__ = {
-    url,
+    projectUrl: url,
     anonKeyPrefix: key.slice(0, 8),
     ts: Date.now(),
   };
+
   supabase.auth.onAuthStateChange((event, session) => {
-    console.log("[Supabase Auth]", event, "user?", !!session?.user);
+    console.log("[Supabase AuthState]", event, "user?", !!session?.user);
     (window as any).__LAST_AUTH_EVENT__ = { event, hasUser: !!session?.user, at: Date.now() };
   });
+
   (window as any).forceSessionCheck = async (): Promise<Session | null> => {
     const { data } = await supabase.auth.getSession();
-    console.log("[forceSessionCheck] user?", !!data.session?.user);
+    console.log("[forceSessionCheck]", !!data.session?.user);
     return data.session;
   };
 }
 
+/**
+ * Clear local auth & cache (debug helper).
+ */
 export async function forceAuthReset() {
   try { await supabase.auth.signOut(); } catch {}
   try {
@@ -47,22 +53,16 @@ export async function forceAuthReset() {
       sessionStorage.clear();
     }
   } catch {}
-  console.info("[Supabase] Local auth state cleared.");
+  console.info("[Supabase] Local auth cleared.");
 }
 
+/**
+ * Ensure we have the latest session (optional helper).
+ */
 export async function ensureSession() {
   const { data } = await supabase.auth.getSession();
   return data.session;
 }
-  } catch {}
-  console.info("[Supabase] Local auth state cleared.");
-}
-
-/**
- * Ensure we have an up-to-date session (optional helper).
- */
-export async function ensureSession() {
-  const { data } = await supabase.auth.getSession();
   return data.session;
 }
       onAuthStateChange: (_cb: any) => ({ data: { subscription: { unsubscribe: () => {} } } }),
