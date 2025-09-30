@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -15,14 +14,18 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true, // This is crucial for the OAuth flow
   },
 });
+// });
+// Setup for fallback/stub logic
+const rawUrl = supabaseUrl;
+const rawKey = supabaseAnonKey;
+const url = typeof rawUrl === "string" ? rawUrl : "";
+const key = typeof rawKey === "string" ? rawKey : "";
+
+const isSupabaseConfigured =
   !!key &&
   url.startsWith("https://") &&
   url.includes(".supabase.co") &&
   key.length > 20;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error("Supabase URL and Anon Key are required. Check your .env.local file.");
-}
 
 // Removed duplicate export of supabase to avoid redeclaration error
 
