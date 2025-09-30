@@ -17,7 +17,7 @@ const authSchema = z.object({
 });
 
 const Auth = () => {
-  const { user, signInWithEmail, signUpWithEmail, signInWithGoogle, loading } = useAuth();
+  const { user, signInWithEmail, signUpWithEmail, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -120,6 +120,43 @@ const Auth = () => {
     }
   };
 
+  // Local Google OAuth initiator (required redirect path)
+  const signInWithGoogle = async () => {
+    setGoogleLoading(true);
+    try {
+      const redirectTo = `${window.location.origin}/auth/callback`;
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+          queryParams: {
+            prompt: "select_account",
+            access_type: "offline",
+            include_granted_scopes: "true",
+          },
+        },
+      });
+      if (error) {
+        console.error("[Auth] Google OAuth start failed:", error);
+        toast({
+          title: "Google sign-in failed",
+            description: error.message,
+            variant: "destructive",
+        });
+        setGoogleLoading(false);
+      }
+      // Success → browser redirects; callback page finalizes session
+    } catch (e: any) {
+      console.error("[Auth] Google OAuth exception:", e);
+      toast({
+        title: "Google sign-in failed",
+        description: e?.message || "Unexpected error",
+        variant: "destructive",
+      });
+      setGoogleLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -212,43 +249,7 @@ const Auth = () => {
               variant="outline"
               className="w-full cursor-pointer"
               disabled={googleLoading || loading}
-              onClick={async () => {
-                setGoogleLoading(true);
-                try {
-                  const redirectTo =
-                    import.meta.env.VITE_SUPABASE_REDIRECT_URL?.trim() ||
-                    window.location.origin;
-                  const { error } = await supabase.auth.signInWithOAuth({
-                    provider: 'google',
-                    options: {
-                      redirectTo,
-                      queryParams: {
-                        prompt: 'select_account',
-                        access_type: 'offline',
-                        include_granted_scopes: 'true',
-                      },
-                    },
-                  });
-                  if (error) {
-                    console.error('[Auth] Google OAuth start failed:', error);
-                    toast({
-                      title: 'Google sign-in failed',
-                      description: error.message,
-                      variant: 'destructive',
-                    });
-                    setGoogleLoading(false);
-                  }
-                  // On success Supabase redirects; listener in useAuth updates state after return
-                } catch (error: any) {
-                  console.error('[Auth] Google OAuth exception:', error);
-                  toast({
-                    title: 'Google sign-in failed',
-                    description: error?.message || 'Unexpected error',
-                    variant: 'destructive',
-                  });
-                  setGoogleLoading(false);
-                }
-              }}
+              onClick={signInWithGoogle}
             >
               {googleLoading ? 'Connecting…' : (
                 <>

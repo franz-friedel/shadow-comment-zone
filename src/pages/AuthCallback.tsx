@@ -1,61 +1,61 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
 
 const AuthCallback = () => {
   const navigate = useNavigate();
-  const { setUser, setSession } = useAuth();
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
-  const [error, setError] = useState<string | null>(null);
+  const redirected = useRef(false);
 
   useEffect(() => {
-    const handleAuthCallback = async () => {
-      try {
-        console.log('Handling OAuth callback...');
-        console.log('Current URL:', window.location.href);
-        console.log('URL hash:', window.location.hash);
-        console.log('URL search params:', window.location.search);
-        
-        // Set up auth state change listener
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-          console.log('Auth state change:', event, session);
-          
-          if (event === 'SIGNED_IN' && session) {
-            console.log('User signed in via callback:', session.user);
-            setUser(session.user);
-            setSession(session);
-            setStatus('success');
-            setTimeout(() => {
-              navigate('/');
-            }, 1000);
-          } else if (event === 'SIGNED_OUT') {
-            console.log('User signed out, redirecting to auth');
-            navigate('/auth');
-          }
-        });
-        
-        // Wait a bit for Supabase to process the callback
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // Clean up subscription
-        subscription.unsubscribe();
-        
-        // If we haven't been redirected yet, check session manually
-        const { data, error } = await supabase.auth.getSession();
-        
-        console.log('Session data:', data);
-        console.log('Session error:', error);
-        
-        if (error) {
-          console.error('Error getting session:', error);
-          setError(error.message);
-          setStatus('error');
-          return;
-        }
+    let unsub: (() => void) | undefined;
+    let timeout: number;
+    let poll: number;
 
-        if (data.session) {
-          console.log('OAuth callback successful:', data.session);
+    const finish = () => {
+      if (redirected.current) return;
+      redirected.current = true;
+      navigate('/', { replace: true });
+    };
+
+    // Listen for session (most reliable)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) finish();
+    });
+    unsub = () => subscription.unsubscribe();
+
+    // Fallback: direct fetch (covers race conditions)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) finish();
+    });
+
+    // Poll every 400ms for up to 5s
+    poll = window.setInterval(async () => {
+      if (redirected.current) return;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) finish();
+    }, 400);
+
+    // Hard timeout (redirect anyway)
+    timeout = window.setTimeout(finish, 5000);
+
+    return () => {
+      if (unsub) unsub();
+      clearTimeout(timeout);
+      clearInterval(poll);
+    };
+  }, [navigate]);
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
+      <div className="space-y-3 text-center">
+        <div className="animate-pulse">Finishing sign-in...</div>
+        <div className="text-xs opacity-70">If this takes too long, refresh the page.</div>
+      </div>
+    </div>
+  );
+};
+
+export default AuthCallback;
           console.log('User:', data.session.user);
           
           // Update the auth context
