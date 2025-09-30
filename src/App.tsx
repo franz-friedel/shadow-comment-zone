@@ -32,7 +32,7 @@ const App = () => {
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((evt, session) => {
-      console.log("[AuthState]", evt, "user?", !!session?.user);
+      console.log("[App Auth Listener]", evt, "user?", !!session?.user);
     });
     return () => sub.subscription.unsubscribe();
   }, []);

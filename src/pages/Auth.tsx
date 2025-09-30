@@ -53,22 +53,14 @@ const Auth = () => {
     if (googleLoading) return;
     setGoogleLoading(true);
     try {
-      const redirectBase =
-        import.meta.env.VITE_SUPABASE_REDIRECT_URL?.replace(/\/+$/, "") ||
-        window.location.origin;
-      const redirectTo = `${redirectBase}/auth/callback`;
+      const redirectTo = `${window.location.origin}/auth/callback`;
+      console.log("[Auth] Initiating Google OAuth", { redirectTo });
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: {
-          redirectTo,
-          queryParams: {
-            prompt: "select_account",
-            access_type: "offline",
-            include_granted_scopes: "true",
-          },
-        },
+        options: { redirectTo },
       });
       if (error) {
+        console.error("[Auth] signInWithOAuth error:", error.message);
         toast({
           title: "Google sign-in failed",
           description: error.message,
@@ -77,6 +69,7 @@ const Auth = () => {
         setGoogleLoading(false);
       }
     } catch (e: any) {
+      console.error("[Auth] signInWithOAuth exception:", e);
       toast({
         title: "Google sign-in failed",
         description: e?.message || "Unexpected error",
@@ -280,6 +273,13 @@ const Auth = () => {
               </Button>
             </div>
           </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default Auth;
         </CardContent>
       </Card>
     </div>

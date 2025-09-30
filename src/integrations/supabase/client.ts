@@ -5,26 +5,39 @@ const url = import.meta.env.VITE_SUPABASE_URL;
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!url || !key) {
+  // Fail fast – build/runtime clarity
   throw new Error("Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY");
 }
 
-// Avoid ReferenceError during SSR/build
+// Guard for SSR/build
 const storage = typeof window !== "undefined" ? window.localStorage : undefined;
 
+// Re‑enable detectSessionInUrl so Supabase does first attempt automatically
 export const supabase = createClient(url, key, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: false, // we exchange code manually
+    detectSessionInUrl: true,
     storage,
   },
 });
 
-// Debug helper
+// Diagnostics
 if (typeof window !== "undefined") {
   (window as any).__SUPABASE_DEBUG__ = {
     url,
-    anonKeyPrefix: key.slice(0, 8),
+    anonKeyPrefix: key.slice(0, 6),
+    ts: Date.now(),
+  };
+  supabase.auth.onAuthStateChange((event, session) => {
+    console.log("[auth:onAuthStateChange]", event, "user?", !!session?.user);
+    (window as any).__LAST_AUTH_EVENT__ = { event, hasUser: !!session?.user, at: Date.now() };
+  });
+  // Utility: call window.forceSessionCheck() in console
+  (window as any).forceSessionCheck = async () => {
+    const { data } = await supabase.auth.getSession();
+    console.log("[forceSessionCheck] session user?", !!data.session?.user, data.session);
+    return data.session;
   };
 }
 

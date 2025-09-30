@@ -1,63 +1,107 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
-  const [status, setStatus] = useState("Exchanging authorization code…");
+  const [status, setStatus] = useState("Processing OAuth response…");
   const [error, setError] = useState<string | null>(null);
+  const exchanged = useRef(false);
+  const finished = useRef(false);
 
   useEffect(() => {
     (async () => {
       const url = new URL(window.location.href);
       const oauthError = url.searchParams.get("error");
       const code = url.searchParams.get("code");
+      const full = url.toString();
+      console.log("[AuthCallback] Start", { oauthError, hasCode: !!code, full });
 
       if (oauthError) {
         setError(`OAuth error: ${oauthError}`);
-        setStatus("Redirecting to /auth …");
-        setTimeout(() => navigate("/auth", { replace: true }), 1200);
-        return;
-      }
-
-      if (!code) {
-        setError("Missing authorization code.");
-        setStatus("Returning to /auth …");
+        setStatus("Redirecting back to /auth …");
         setTimeout(() => navigate("/auth", { replace: true }), 1500);
         return;
       }
 
-      try {
-        setStatus("Performing code exchange …");
-        const { error: exErr } = await supabase.auth.exchangeCodeForSession(code);
-        if (exErr) {
-          setError(`exchangeCodeForSession failed: ${exErr.message}`);
-          setStatus("Returning to /auth …");
-          setTimeout(() => navigate("/auth", { replace: true }), 1800);
-          return;
-        }
-      } catch (e: any) {
-        setError(`Unexpected exchange failure: ${e?.message || "unknown"}`);
-        setStatus("Returning to /auth …");
-        setTimeout(() => navigate("/auth", { replace: true }), 1800);
+      // First attempt: rely on detectSessionInUrl (already happened before render)
+      setStatus("Waiting for session from automatic exchange…");
+
+      const checkImmediate = await supabase.auth.getSession();
+      if (checkImmediate.data.session?.user) {
+        console.log("[AuthCallback] Immediate session found.");
+        successRedirect();
         return;
       }
 
-      // Confirm session with retries (handles slow storage propagation)
-      setStatus("Verifying session …");
-      for (let i = 0; i < 10; i++) {
-        const { data } = await supabase.auth.getSession();
-        if (data.session?.user) {
-          setStatus("Session established. Redirecting …");
-          setTimeout(() => navigate("/", { replace: true }), 300);
-          return;
+      // Listen for late arrival
+      const { data: listener } = supabase.auth.onAuthStateChange((_evt, session) => {
+        if (session?.user && !finished.current) {
+          console.log("[AuthCallback] Session arrived via listener.");
+          successRedirect();
         }
-        await new Promise(r => setTimeout(r, 300));
+      });
+
+      // Fallback: manual exchange after short delay if code present
+      let manualTimer: number | undefined;
+      if (code) {
+        manualTimer = window.setTimeout(async () => {
+          if (exchanged.current || finished.current) return;
+            setStatus("Manual code exchange attempt…");
+            console.log("[AuthCallback] Manual exchange fallback starting.");
+            exchanged.current = true;
+            const { error: exErr } = await supabase.auth.exchangeCodeForSession(code);
+            if (exErr) {
+              console.error("[AuthCallback] Manual exchange failed:", exErr.message);
+              setError("Manual exchange failed: " + exErr.message);
+              setStatus("Returning to /auth …");
+              cleanup();
+              setTimeout(() => navigate("/auth", { replace: true }), 2500);
+              return;
+            }
+            // Check again
+            const { data } = await supabase.auth.getSession();
+            if (data.session?.user) {
+              console.log("[AuthCallback] Manual exchange success.");
+              successRedirect();
+            } else {
+              setError("Exchange succeeded but no session persisted.");
+              setStatus("Returning to /auth …");
+              cleanup();
+              setTimeout(() => navigate("/auth", { replace: true }), 2500);
+            }
+        }, 900); // ~1 second
       }
 
-      setError("Session not established after exchange (timeout).");
-      setStatus("Returning to /auth …");
-      setTimeout(() => navigate("/auth", { replace: true }), 1800);
+      // Hard timeout
+      const timeout = window.setTimeout(async () => {
+        if (finished.current) return;
+        const { data } = await supabase.auth.getSession();
+        if (data.session?.user) {
+          successRedirect();
+          return;
+        }
+        setError("Timeout waiting for session.");
+        setStatus("Returning to /auth …");
+        cleanup();
+        setTimeout(() => navigate("/auth", { replace: true }), 2000);
+      }, 7000);
+
+      function successRedirect() {
+        if (finished.current) return;
+        finished.current = true;
+        setStatus("Signed in. Redirecting …");
+        cleanup();
+        // Clean URL (remove code params)
+        window.history.replaceState({}, document.title, window.location.origin + "/");
+        setTimeout(() => navigate("/", { replace: true }), 300);
+      }
+
+      function cleanup() {
+        listener.subscription.unsubscribe();
+        if (manualTimer) clearTimeout(manualTimer);
+        clearTimeout(timeout);
+      }
     })();
   }, [navigate]);
 
@@ -66,13 +110,13 @@ export default function AuthCallback() {
       <div className="space-y-3 text-center max-w-sm px-4">
         <p className="font-medium">{status}</p>
         {error && (
-          <div className="text-red-500 whitespace-pre-wrap break-words text-xs border border-red-500/30 rounded p-2 bg-red-500/5">
+          <div className="text-red-500 text-xs whitespace-pre-wrap break-words border border-red-500/30 rounded p-2 bg-red-500/5">
             {error}
           </div>
         )}
         {!error && (
           <p className="text-muted-foreground text-xs">
-            If this takes longer than a few seconds you can refresh this page safely.
+            If this does not finish automatically in a few seconds you may refresh safely.
           </p>
         )}
       </div>
