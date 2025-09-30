@@ -4,51 +4,51 @@ import { createClient, type Session } from "@supabase/supabase-js";
 const url = import.meta.env.VITE_SUPABASE_URL;
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!url || !key) {
-  throw new Error("Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY");
-}
+if (!url || !key) throw new Error("Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY");
 
-// Guard for SSR / build
+// Guard for build (SSR)
 const storage = typeof window !== "undefined" ? window.localStorage : undefined;
 
 export const supabase = createClient(url, key, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true, // let SDK handle the OAuth code on callback
+    detectSessionInUrl: true, // AUTO strategy
     storage,
   },
 });
 
 // Diagnostics (optional)
 if (typeof window !== "undefined") {
-  (window as any).__SUPABASE_INFO__ = {
-    projectUrl: url,
-    anonKeyPrefix: key.slice(0, 8),
-    ts: Date.now(),
-  };
-
+  (window as any).__SUPABASE_INFO__ = { url, anonKeyPrefix: key.slice(0, 8), ts: Date.now() };
   supabase.auth.onAuthStateChange((event, session) => {
     console.log("[Supabase AuthState]", event, "user?", !!session?.user);
     (window as any).__LAST_AUTH_EVENT__ = { event, hasUser: !!session?.user, at: Date.now() };
   });
-
   (window as any).forceSessionCheck = async (): Promise<Session | null> => {
     const { data } = await supabase.auth.getSession();
-    console.log("[forceSessionCheck]", !!data.session?.user);
+    console.log("[forceSessionCheck] user?", !!data.session?.user);
     return data.session;
   };
 }
 
-/**
- * Clear local auth & cache (debug helper).
- */
 export async function forceAuthReset() {
   try { await supabase.auth.signOut(); } catch {}
-  try {
-    if (typeof window !== "undefined") {
+  if (typeof window !== "undefined") {
+    try {
       Object.keys(localStorage)
         .filter(k => k.startsWith("sb-") || k.includes("supabase"))
+        .forEach(k => localStorage.removeItem(k));
+      sessionStorage.clear();
+    } catch {}
+  }
+  console.info("[Supabase] Local auth cleared.");
+}
+
+export async function ensureSession() {
+  const { data } = await supabase.auth.getSession();
+  return data.session;
+}
         .forEach(k => localStorage.removeItem(k));
       sessionStorage.clear();
     }
