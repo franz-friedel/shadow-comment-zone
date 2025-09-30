@@ -1,28 +1,25 @@
+/// <reference types="vite/client" />
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey =
-  import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const url = import.meta.env.VITE_SUPABASE_URL!;
+const key = import.meta.env.VITE_SUPABASE_ANON_KEY!;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error("Supabase URL and Anon Key are required.");
-}
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+// We handle the OAuth code exchange ourselves, so detectSessionInUrl = false.
+export const supabase = createClient(url, key, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true, // required for OAuth
-    storage: window.localStorage,
+    detectSessionInUrl: false,
+    storage: localStorage,
   },
 });
-// Setup for fallback/stub logic
-const rawUrl = supabaseUrl;
-const rawKey = supabaseAnonKey;
-const url = typeof rawUrl === "string" ? rawUrl : "";
-const key = typeof rawKey === "string" ? rawKey : "";
 
-const isSupabaseConfigured =
+// Broadcast auth changes globally (so non-hook code can react)
+supabase.auth.onAuthStateChange((_event, session) => {
+  window.dispatchEvent(
+    new CustomEvent("supabase-auth-changed", { detail: { user: session?.user || null, session } }),
+  );
+});
   !!key &&
   url.startsWith("https://") &&
   url.includes(".supabase.co") &&
@@ -122,6 +119,9 @@ export async function forceAuthReset() {
   (window as any).__SUPABASE_LAST_RESET__ = Date.now();
 }
 
+// Expose quick debug helper
+;(window as any).forceAuthReset = forceAuthReset;
+// Optional debug (remove after): console.log("[Supabase] Initialized", url);
 // Expose quick debug helper
 ;(window as any).forceAuthReset = forceAuthReset;
 // Optional debug (remove after): console.log("[Supabase] Initialized", url);

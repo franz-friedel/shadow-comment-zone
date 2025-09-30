@@ -4,92 +4,92 @@ import { supabase } from '@/integrations/supabase/client';
 
 const AuthCallback = () => {
   const navigate = useNavigate();
-  const redirected = useRef(false);
+  const done = useRef(false);
 
   useEffect(() => {
-    let unsub: (() => void) | undefined;
-    let timeout: number;
     let poll: number;
-
+    let timeout: number;
     const finish = () => {
-      if (redirected.current) return;
-      redirected.current = true;
+      if (done.current) return;
+      done.current = true;
       navigate('/', { replace: true });
     };
 
-    // Listen for session (most reliable)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    // Primary listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_evt, session) => {
       if (session?.user) finish();
     });
-    unsub = () => subscription.unsubscribe();
 
-    // Fallback: direct fetch (covers race conditions)
+    // Immediate attempt
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) finish();
     });
 
-    // Poll every 400ms for up to 5s
+    // Poll fallback (handles storage race)
     poll = window.setInterval(async () => {
-      if (redirected.current) return;
+      if (done.current) return;
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) finish();
     }, 400);
 
     // Hard timeout (redirect anyway)
-    timeout = window.setTimeout(finish, 5000);
+    timeout = window.setTimeout(finish, 6000);
 
     return () => {
-      if (unsub) unsub();
-      clearTimeout(timeout);
+      subscription.unsubscribe();
       clearInterval(poll);
+      clearTimeout(timeout);
     };
   }, [navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
-      <div className="space-y-3 text-center">
-        <div className="animate-pulse">Finishing sign-in...</div>
-        <div className="text-xs opacity-70">If this takes too long, refresh the page.</div>
+      <div className="space-y-2 text-center">
+        <div className="animate-pulse">Finalizing sign-in…</div>
+        <div className="text-xs opacity-70">If it stalls, refresh this page.</div>
       </div>
     </div>
   );
 };
 
 export default AuthCallback;
-          console.log('User:', data.session.user);
-          
-          // Update the auth context
-          setUser(data.session.user);
-          setSession(data.session);
-          
-          setStatus('success');
-          
-          // Redirect to home page after a short delay
-          setTimeout(() => {
-            navigate('/');
-          }, 1000);
-        } else {
-          console.log('No session found, trying to get user...');
-          
-          // Try to get user directly
-          const { data: { user }, error: userError } = await supabase.auth.getUser();
-          console.log('User data:', user);
-          console.log('User error:', userError);
-          
-          if (user) {
-            console.log('Found user, creating session...');
-            setUser(user);
-            setStatus('success');
-            setTimeout(() => {
-              navigate('/');
-            }, 1000);
-          } else {
-            console.log('No user found, redirecting to auth page');
-            navigate('/auth');
-          }
+
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+
+export default function AuthCallback() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    (async () => {
+      const url = new URL(window.location.href);
+      const error = url.searchParams.get("error");
+      const code = url.searchParams.get("code");
+
+      if (error) {
+        console.error("OAuth error:", error);
+        navigate("/auth");
+        return;
+      }
+
+      if (code) {
+        const { error: exErr } = await supabase.auth.exchangeCodeForSession(code);
+        if (exErr) {
+          console.error("exchangeCodeForSession error:", exErr.message);
+          navigate("/auth");
+          return;
         }
-      } catch (err) {
-        console.error('OAuth callback error:', err);
+      }
+
+      const { data } = await supabase.auth.getSession();
+      console.log("Session after exchange:", !!data.session);
+      navigate("/");
+    })();
+  }, [navigate]);
+
+  return <div className="p-4">Signing you in…</div>;
+}
         setError(err instanceof Error ? err.message : 'Authentication failed');
         setStatus('error');
       }
