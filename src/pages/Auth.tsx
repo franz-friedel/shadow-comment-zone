@@ -53,18 +53,36 @@ const Auth = () => {
     if (googleLoading) return;
     setGoogleLoading(true);
     try {
-      await supabase.auth.signInWithOAuth({
+      const redirectBase =
+        import.meta.env.VITE_SUPABASE_REDIRECT_URL?.replace(/\/+$/, "") ||
+        window.location.origin;
+      const redirectTo = `${redirectBase}/auth/callback`;
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: `${window.location.origin}/auth/callback` },
+        options: {
+          redirectTo,
+          queryParams: {
+            prompt: "select_account",
+            access_type: "offline",
+            include_granted_scopes: "true",
+          },
+        },
       });
-      // Redirect occurs; /auth/callback handles exchange.
+      if (error) {
+        toast({
+          title: "Google sign-in failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        setGoogleLoading(false);
+      }
     } catch (e: any) {
-      setGoogleLoading(false);
       toast({
         title: "Google sign-in failed",
         description: e?.message || "Unexpected error",
         variant: "destructive",
       });
+      setGoogleLoading(false);
     }
   }
 
@@ -254,28 +272,6 @@ const Auth = () => {
                   href="https://www.buymeacoffee.com/yourname"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2"
-                >
-                  <Coffee className="h-4 w-4" />
-                  <span>Buy me a coffee</span>
-                </a>
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
-
-export default Auth;
-};
-
-export default Auth;
-};
-
-export default Auth;
-                  rel="noopener noreferrer"
                   className="flex items-center gap-2"
                 >
                   <Coffee className="h-4 w-4" />
@@ -287,6 +283,10 @@ export default Auth;
         </CardContent>
       </Card>
     </div>
+  );
+};
+
+export default Auth;
   );
 };
 

@@ -1,35 +1,35 @@
 /// <reference types="vite/client" />
 import { createClient } from "@supabase/supabase-js";
 
-const url = import.meta.env.VITE_SUPABASE_URL!;
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY!;
+const url = import.meta.env.VITE_SUPABASE_URL;
+const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!url || !key) {
+  throw new Error("Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY");
+}
+
+// Avoid ReferenceError during SSR/build
+const storage = typeof window !== "undefined" ? window.localStorage : undefined;
 
 export const supabase = createClient(url, key, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: false,
-    storage: localStorage,
+    detectSessionInUrl: false, // we exchange code manually
+    storage,
   },
 });
 
-// Broadcast auth changes globally (so non-hook code can react)
-supabase.auth.onAuthStateChange((_event, session) => {
-  window.dispatchEvent(
-    new CustomEvent("supabase-auth-changed", { detail: { user: session?.user || null, session } }),
-  );
-});
-  !!key &&
-  url.startsWith("https://") &&
-  url.includes(".supabase.co") &&
-  key.length > 20;
+// Debug helper
+if (typeof window !== "undefined") {
+  (window as any).__SUPABASE_DEBUG__ = {
+    url,
+    anonKeyPrefix: key.slice(0, 8),
+  };
+}
 
-// Removed duplicate export of supabase to avoid redeclaration error
-
-// Simple debug exposure (optional)
-;(window as any).__SUPABASE_INFO__ = {
-  url: supabaseUrl,
-  anonKeyPrefix: supabaseAnonKey.slice(0, 8),
+// Optional: force an initial session load (non-blocking)
+supabase.auth.getSession().catch(() => {});
 };
 
 function createStub() {
