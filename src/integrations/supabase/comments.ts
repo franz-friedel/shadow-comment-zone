@@ -1,8 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "./client";
-
-// Force supabase to the full client type (original export is a union with a limited mock shape)
-const supabaseClient = supabase as SupabaseClient;
 
 /** Last error message set by comment operations (null if none). */
 export let lastError: string | null = null;
@@ -32,6 +28,15 @@ export interface CommentsDiagnostics {
 
 let lastDiagnostics: CommentsDiagnostics | null = null;
 export function getLastCommentsDiagnostics() { return lastDiagnostics; }
+
+// Helper to safely extract PostgREST error info without using `any`
+function getErrorMeta(err: unknown): { code?: string; message: string } {
+  if (err && typeof err === "object") {
+    const maybe = err as { code?: string; message?: string };
+    return { code: maybe.code, message: maybe.message ?? "Unknown error" };
+  }
+  return { message: "Unknown error" };
+}
 
 // Bot / seed helpers
 const BOT_AUTHOR_ID = "00000000-0000-4000-8000-botshadow000";
@@ -75,8 +80,9 @@ export async function fetchComments(
     .order("created_at", { ascending: true });
 
   if (error) {
-    const msg = error.message || "";
-    const code = (error as any).code;
+    const meta = getErrorMeta(error);
+    const msg = meta.message;
+    const code = meta.code;
     const tableMissing = /relation .*shadow_comments.* does not exist/i.test(msg) || code === "42P01";
     const permissionDenied =
       /permission denied/i.test(msg) ||
@@ -134,14 +140,14 @@ export async function addComment(params: {
       body,
       parent_id: parentId,
       timestamp_seconds: timestampSeconds,
-      is_bot: false
+      is_bot: false,
     })
     .select()
     .single();
 
   if (error) {
-    const code = (error as any).code;
-    lastError = `[${code || "?"}] ${error.message}`;
+    const meta = getErrorMeta(error);
+    lastError = `[${meta.code || "?"}] ${meta.message}`;
   }
   return { data: (data as ShadowComment) ?? null, error };
 }
@@ -150,13 +156,22 @@ export function subscribeComments(
   videoId: string,
   cb: (c: ShadowComment, type: "INSERT" | "UPDATE" | "DELETE") => void
 ) {
-  const channel = supabase
+  return supabase
     .channel(`shadow_comments_${videoId}`)
     .on(
       "postgres_changes",
-      { event: "*", schema: "public", table: "shadow_comments", filter: `video_id=eq.${videoId}` },
-      (payload) => cb(payload.new as ShadowComment, payload.eventType as any)
+      {
+        event: "*",
+        schema: "public",
+        table: "shadow_comments",
+        filter: `video_id=eq.${videoId}`,
+      },
+      (payload) => {
+        // Guard types (DELETE payload may have old vs new)
+        const eventType = payload.eventType as "INSERT" | "UPDATE" | "DELETE";
+        const row = (payload.new || payload.old) as ShadowComment;
+        cb(row, eventType);
+      }
     )
     .subscribe();
-  return () => supabase.removeChannel(channel);
 }
