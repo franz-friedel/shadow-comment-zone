@@ -40,24 +40,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function signInWithEmail(email: string, password: string) {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (!error && data.session) {
-      setSession(data.session);
-      setUser(data.session.user);
+    const auth = supabase.auth as any;
+    if ('signInWithPassword' in auth) {
+      const { data, error } = await auth.signInWithPassword({ email, password });
+      if (!error && data.session) {
+        setSession(data.session);
+        setUser(data.session.user);
+      }
+      return { error };
     }
+    const error = new Error("signInWithPassword method is not available on the current auth client");
     return { error };
   }
 
   async function signUpWithEmail(email: string, password: string, name?: string) {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { name } },
-    });
-    if (!error && data.session) {
-      setSession(data.session);
-      setUser(data.session.user);
+    const auth = supabase.auth as any;
+    if ('signUp' in auth) {
+      const { data, error } = await auth.signUp({
+        email,
+        password,
+        options: { data: { name } },
+      });
+      if (!error && data.session) {
+        setSession(data.session);
+        setUser(data.session.user);
+      }
+      return { error };
     }
+    const error = new Error("signUp method is not available on the current auth client");
     return { error };
   }
 
