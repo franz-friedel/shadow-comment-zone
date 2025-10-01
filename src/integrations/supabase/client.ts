@@ -56,6 +56,44 @@ if (isSupabaseConfigured) {
   }
 }
 
+// Auto-exchange OAuth code even if /auth/callback was skipped
+if (typeof window !== "undefined") {
+  (async () => {
+    try {
+      const url = new URL(window.location.href);
+      const code = url.searchParams.get("code");
+      const err = url.searchParams.get("error");
+      if (code && !err) {
+        const { data } = await supabase.auth.getSession();
+        if (!data.session) {
+          const { error: exErr } = await supabase.auth.exchangeCodeForSession(code);
+          if (!exErr) {
+            // Clean URL
+            url.searchParams.delete("code");
+            url.searchParams.delete("scope");
+            url.searchParams.delete("auth_type");
+            window.history.replaceState({}, document.title, url.origin + url.pathname + url.hash);
+            window.dispatchEvent(new CustomEvent("supabase-auth-exchanged"));
+          } else {
+            console.error("[Supabase AutoExchange] Failed:", exErr.message);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("[Supabase AutoExchange] Exception", e);
+    }
+  })();
+}
+
+// Optional: global listener re-dispatch (if not already done elsewhere)
+if (typeof window !== "undefined") {
+  supabase.auth.onAuthStateChange((evt, session) => {
+    window.dispatchEvent(
+      new CustomEvent("supabase-auth", { detail: { event: evt, hasUser: !!session?.user } })
+    );
+  });
+}
+
 export const supabase = supabaseImpl;
 export { isSupabaseConfigured };
 

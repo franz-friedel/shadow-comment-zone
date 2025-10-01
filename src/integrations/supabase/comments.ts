@@ -24,14 +24,17 @@ export function getLastCommentsError() {
 /** Fetch all non-deleted (or legacy null) comments for a video. */
 export async function fetchComments(videoId: string) {
   lastError = null;
-  const { data, error } = await supabaseClient
+  const { data, error } = await supabase
     .from("shadow_comments")
     .select("*")
     .eq("video_id", videoId)
     .or("is_deleted.is.null,is_deleted.eq.false")
     .order("created_at", { ascending: true });
 
-  if (error) lastError = `${error.code || ""} ${error.message}`.trim();
+  if (error) {
+    lastError = `${error.code || ""} ${error.message}`.trim();
+    console.error("[Comments fetch error]", lastError);
+  }
   return { data: (data as ShadowComment[] | null) ?? [], error };
 }
 
@@ -65,10 +68,12 @@ export async function addComment(params: {
       parent_id: parentId,
       timestamp_seconds: timestampSeconds,
     })
-    .select("*")
+    .select()
     .single();
-
-  if (error) lastError = `${error.code || ""} ${error.message}`.trim();
+  if (error) {
+    lastError = `${error.code || ""} ${error.message}`.trim();
+    console.error("[Comments insert error]", lastError);
+  }
   return { data: (data as ShadowComment) ?? null, error };
 }
 
