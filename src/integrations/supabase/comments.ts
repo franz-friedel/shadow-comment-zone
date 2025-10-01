@@ -56,7 +56,7 @@ export async function addComment(params: {
   }
 
   const { videoId, body, parentId = null, timestampSeconds = null } = params;
-  const { data, error } = await supabaseClient
+  const { data, error } = await supabase
     .from("shadow_comments")
     .insert({
       video_id: videoId,
@@ -65,7 +65,7 @@ export async function addComment(params: {
       parent_id: parentId,
       timestamp_seconds: timestampSeconds,
     })
-    .select()
+    .select("*")
     .single();
 
   if (error) lastError = `${error.code || ""} ${error.message}`.trim();

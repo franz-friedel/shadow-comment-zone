@@ -11,9 +11,9 @@ const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
 function createStub() {
   return {
     auth: {
-      signOut: async () => {},
+      signOut: async () => { },
       getSession: async () => ({ data: { session: null } }),
-      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => { } } } }),
     },
   };
 }
@@ -29,7 +29,7 @@ const rawKey = supabaseAnonKey;
 if (isSupabaseConfigured) {
   try {
     supabaseImpl = createClient(url, key, {
-      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
     });
     console.info("[Supabase] Initialized (resolved env).");
     if (typeof window !== "undefined") (window as any).__SUPABASE_STUB__ = false;
@@ -46,7 +46,7 @@ if (isSupabaseConfigured) {
     console.warn("[Supabase] Proceeding with fallback values.");
     try {
       supabaseImpl = createClient(url, key, {
-        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
       });
       if (typeof window !== "undefined") (window as any).__SUPABASE_STUB__ = false;
     } catch (e) {
@@ -76,8 +76,8 @@ if (typeof window !== "undefined") {
 // Force removal of any cached session (for stuck / always-same-user cases)
 export async function forceAuthReset() {
   try {
-    await supabase.auth.signOut().catch(() => {});
-  } catch {}
+    await supabase.auth.signOut().catch(() => { });
+  } catch { }
   try {
     const keys: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
@@ -85,10 +85,10 @@ export async function forceAuthReset() {
       if (k && (k.startsWith("sb-") || k.includes("supabase"))) keys.push(k);
     }
     keys.forEach((k) => localStorage.removeItem(k));
-  } catch {}
+  } catch { }
   try {
     sessionStorage.clear();
-  } catch {}
+  } catch { }
   console.info("[Supabase] Auth reset executed.");
   if (typeof window !== "undefined") (window as any).__SUPABASE_LAST_RESET__ = Date.now();
 }
