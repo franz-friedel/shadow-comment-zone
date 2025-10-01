@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+FILE="$1"
+
+# If a template or merge commit, skip
+grep -qE "^Merge " "$FILE" && exit 0
+
+CONTENT="$(grep -vE '^#' "$FILE" | tr -d '[:space:]')"
+
+if [ -z "$CONTENT" ]; then
+  echo "chore:auto $(date -u +%Y-%m-%dT%H-%M-%SZ)" > "$FILE"
+fi

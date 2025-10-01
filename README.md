@@ -113,3 +113,17 @@ Schema addition (if not present):
 ```sql
 ALTER TABLE public.shadow_comments ADD COLUMN IF NOT EXISTS is_bot boolean DEFAULT false;
 ```
+
+## Auto Commit Workflow
+
+Local dev auto commits changed files (debounced 4s):
+```bash
+npm run auto:commit
+```
+Auto commit + push:
+```bash
+npm run auto:commit:push
+```
+Commit messages are timestamped `chore:auto <iso>`; manual empty commit messages are auto-filled by the Husky prepare-commit-msg hook.
+
+Disable pushing by stopping the script (Ctrl+C). Only true errors (type or runtime) now need manual attention.

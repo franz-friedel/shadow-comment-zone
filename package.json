@@ -13,7 +13,9 @@
     "typecheck": "tsc --noEmit",
     "check": "npm run lint && npm run typecheck",
     "fix": "npm run lint:fix && npm run format",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "auto:commit": "node scripts/autoCommit.mjs",
+    "auto:commit:push": "AUTO_COMMIT_PUSH=1 node scripts/autoCommit.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -75,6 +77,7 @@
     "@types/react-dom": "^18.3.2",
     "@vitejs/plugin-react-swc": "^3.11.0",
     "autoprefixer": "^10.4.21",
+    "chokidar": "^3.6.0",
     "eslint": "^9.9.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-import": "^2.29.1",
