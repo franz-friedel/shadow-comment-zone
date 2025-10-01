@@ -24,7 +24,6 @@ export async function fetchComments(videoId: string) {
     // accept rows where is_deleted is false OR null (in case older rows have null)
     .or("is_deleted.is.null,is_deleted.eq.false")
     .order("created_at", { ascending: true });
-    .order("created_at", { ascending: true });
 
   const { data, error } = await query;
   if (error) {
@@ -61,12 +60,11 @@ export async function addComment(params: {
     timestamp_seconds: timestampSeconds,
   };
   const { data, error } = await (supabase as SupabaseClient)
+  const { data, error } = await (supabase as SupabaseClient)
     .from("shadow_comments")
     .insert(insertPayload)
     .select()
     .single();
-    .single();
-
   if (error) {
     lastError = error.message;
   }

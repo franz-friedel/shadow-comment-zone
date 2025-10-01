@@ -41,6 +41,7 @@ export function useComments(videoId: string | null) {
       }));
       return;
     }
+
     // Initial successful load
     setState((s) => ({
       ...s,
@@ -48,6 +49,7 @@ export function useComments(videoId: string | null) {
       error: null,
       comments: data || [],
     }));
+
     // Subscribe to live updates
     const unsub = subscribeComments(videoId, (type, c) => {
       setState((s) => {
@@ -55,6 +57,16 @@ export function useComments(videoId: string | null) {
           if (s.comments.some((x) => x.id === c.id)) return s;
           return { ...s, comments: [...s.comments, c] };
         }
+        if (type === "DELETE") {
+          return { ...s, comments: s.comments.filter((x) => x.id !== c.id) };
+        }
+        return s;
+      });
+    });
+
+    return unsub;
+  }, [videoId]);
+
   useEffect(() => {
     let cleanup: any;
     load().then((unsub) => {
@@ -64,18 +76,6 @@ export function useComments(videoId: string | null) {
       if (cleanup) cleanup();
     };
   }, [load]);
-
-  const create = useCallback(
-    async (body: string, parentId?: string | null, timestampSeconds?: number | null) => {
-        }
-        if (type === "DELETE") {
-          return { ...s, comments: s.comments.filter((x) => x.id !== c.id) };
-        }
-        return s;
-      });
-    });
-    return unsub;
-  }, [videoId]);
 
   const create = useCallback(
     async (body: string, parentId?: string | null, timestampSeconds?: number | null) => {
