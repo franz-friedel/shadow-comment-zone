@@ -141,17 +141,3 @@ export function subscribeComments(
     supabaseClient.removeChannel(channel);
   };
 }
-{ event: "*", schema: "public", table: "shadow_comments", filter: `video_id=eq.${videoId}` },
-(payload) => {
-  const type = payload.eventType as "INSERT" | "UPDATE" | "DELETE";
-  const record =
-    type === "DELETE" ? (payload.old as ShadowComment) : (payload.new as ShadowComment);
-  cb(record, type);
-}
-    )
-    .subscribe();
-
-return () => {
-  supabaseClient.removeChannel(channel);
-};
-}
