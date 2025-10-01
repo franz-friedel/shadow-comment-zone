@@ -4,7 +4,6 @@ import {
   addComment,
   createLocalSeedComments,
   fetchComments,
-  getLastCommentsError,
   subscribeComments,
 } from "@/integrations/supabase/comments";
 import { useCallback, useEffect, useState } from "react";
@@ -36,9 +35,9 @@ export function useComments(videoId: string | null, opts?: { localSeed?: boolean
     setState((s) => ({ ...s, loading: true, error: null }));
     const { data, error } = await fetchComments(videoId);
     if (error) {
-      const detail = getLastCommentsError();
       const tableMissing =
         !!error.message?.match(/relation .* does not exist/i) || (error as any).code === "42P01";
+      const detail = (error as any)?.message || null;
       setState((s) => ({
         ...s,
         loading: false,
@@ -82,9 +81,9 @@ export function useComments(videoId: string | null, opts?: { localSeed?: boolean
     if (!videoId) return;
     const unsub = subscribeComments(videoId, (c, type) => {
       setState((s) => {
-        // If we had local seeds and real data arrives, drop all local seeds first time we see an INSERT
         let comments = s.comments;
         if (s.seededLocally && type === "INSERT") {
+          // Drop local seed comments once real data starts arriving
           comments = s.comments.filter((x) => x.user_id !== BOT_AUTHOR_ID || !x.is_bot);
         }
         if (type === "INSERT") {
@@ -121,7 +120,7 @@ export function useComments(videoId: string | null, opts?: { localSeed?: boolean
       );
       const result = await addComment({ videoId, body, parentId, timestampSeconds: ts });
       if (result.error) {
-        const detail = getLastCommentsError();
+        const detail = (result.error as any)?.message || null;
         setState((s) => ({
           ...s,
           error: "Failed to add comment",

@@ -8,20 +8,33 @@ interface Props {
 
 export function CommentsPane({ videoId }: Props) {
   const { user } = useAuth();
+  type CommentsHookResult = {
+    comments: Array<{
+      id: string;
+      is_bot?: boolean;
+      user_id: string;
+      body: string;
+      created_at: string;
+    }>;
+    loading: boolean;
+    error: unknown;
+    tableMissing: boolean;
+    add: (body: string) => Promise<void>;
+    reload: () => void;
+    lastDetail: any;
+    seededLocally: boolean;
+  };
+
   const {
-    comments,
-    loading,
-    error,
-    tableMissing,
-    add,
-    reload,
-    lastDetail,
-    seededLocally,
-    isBot,
-  } = useComments(videoId, {
-    localSeed: true,
-    seedMin: 5,
-  });
+    comments = [],
+    loading = false,
+    error = null,
+    tableMissing = false,
+    add = async (_body: string) => { },
+    reload = () => { },
+    lastDetail = null,
+    seededLocally = false,
+  } = ((useComments(videoId, { localSeed: true, seedMin: 5 }) ?? {}) as Partial<CommentsHookResult>);
   const [draft, setDraft] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
