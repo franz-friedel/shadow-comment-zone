@@ -1,11 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
-import { addComment, fetchComments, ShadowComment, subscribeComments } from "@/integrations/supabase/comments";
+import {
+  addComment,
+  fetchComments,
+  subscribeComments,
+  ShadowComment,
+  getLastCommentsError,
+} from "@/integrations/supabase/comments";
 
 interface UseCommentsState {
   comments: ShadowComment[];
   loading: boolean;
   error: string | null;
   tableMissing: boolean;
+  lastDetail: string | null;
 }
 
 export function useComments(videoId: string | null) {
@@ -14,6 +21,7 @@ export function useComments(videoId: string | null) {
     loading: !!videoId,
     error: null,
     tableMissing: false,
+    lastDetail: null,
   });
 
   const load = useCallback(async () => {
@@ -21,26 +29,18 @@ export function useComments(videoId: string | null) {
     setState((s) => ({ ...s, loading: true, error: null }));
     const { data, error } = await fetchComments(videoId);
     if (error) {
-      if (error.message.includes("relation") || error.code === "42P01") {
-        setState((s) => ({ ...s, loading: false, tableMissing: true, error: "comments table missing" }));
-      } else {
-        setState((s) => ({ ...s, loading: false, error: error.message }));
-      }
+      const detail = getLastCommentsError();
+      const tableMissing =
+        !!error.message.match(/relation .* does not exist/i) || error.code === "42P01";
+      setState((s) => ({
+        ...s,
+        loading: false,
+        error: tableMissing ? "Comments table missing" : "Failed to load comments",
+        tableMissing,
+        lastDetail: detail,
+      }));
       return;
     }
-    setState((s) => ({ ...s, loading: false, comments: data }));
-  }, [videoId]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  useEffect(() => {
-    if (!videoId) return;
-    const unsub = subscribeComments(videoId, (c, type) => {
-      setState((s) => {
-        if (type === "INSERT") {
-          if (s.comments.find((x) => x.id === c.id)) return s;
           return { ...s, comments: [...s.comments, c] };
         }
         if (type === "UPDATE") {

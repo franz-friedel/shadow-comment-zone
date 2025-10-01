@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   videoId: string | null;
 }
 
-export function CommentsPane({ videoId }: Props) {
   const { user } = useAuth();
   const { comments, loading, error, tableMissing, add, reload } = useComments(videoId);
   const [draft, setDraft] = useState("");
