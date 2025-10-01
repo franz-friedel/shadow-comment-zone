@@ -24,7 +24,7 @@ export function getLastCommentsError() {
 /** Fetch all non-deleted (or legacy null) comments for a video. */
 export async function fetchComments(videoId: string) {
   lastError = null;
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from("shadow_comments")
     .select("*")
     .eq("video_id", videoId)
@@ -59,7 +59,7 @@ export async function addComment(params: {
   }
 
   const { videoId, body, parentId = null, timestampSeconds = null } = params;
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from("shadow_comments")
     .insert({
       video_id: videoId,

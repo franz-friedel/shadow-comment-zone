@@ -1,13 +1,13 @@
-import { supabase } from "@/integrations/supabase/client";
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from "@/integrations/supabase/client";
 import { Coffee } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 
 const authSchema = z.object({
@@ -55,24 +55,29 @@ const Auth = () => {
     if (googleLoading) return;
     setGoogleLoading(true);
     try {
-      await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}${import.meta.env.VITE_SUPABASE_CALLBACK_PATH || "/auth/callback"}`,
-          queryParams: {
-            prompt: "select_account",
-            access_type: "offline",
-            include_granted_scopes: "true",
+      const auth: any = supabase.auth;
+      if (auth?.signInWithOAuth) {
+        await auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: `${window.location.origin}${import.meta.env.VITE_SUPABASE_CALLBACK_PATH || "/auth/callback"}`,
+            queryParams: {
+              prompt: "select_account",
+              access_type: "offline",
+              include_granted_scopes: "true",
+            },
           },
-        },
-      });
+        });
+      } else {
+        throw new Error("OAuth sign-in not available in this auth client");
+      }
     } catch (e: any) {
-      setGoogleLoading(false);
       toast({
         title: "Google sign-in failed",
         description: e?.message || "Unexpected error",
         variant: "destructive",
       });
+      setGoogleLoading(false);
     }
   }
 
@@ -304,9 +309,6 @@ const Auth = () => {
       </Card>
     </div>
   );
-};
-
-export default Auth;
 };
 
 export default Auth;

@@ -14,6 +14,11 @@ function createStub() {
       signOut: async () => { },
       getSession: async () => ({ data: { session: null } }),
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => { } } } }),
+      // Added to match Supabase client API used below
+      exchangeCodeForSession: async (_code: string) => ({
+        data: { session: null },
+        error: null,
+      }),
     },
   };
 }
@@ -56,6 +61,9 @@ if (isSupabaseConfigured) {
   }
 }
 
+// Export supabase before any usage in subsequent code blocks to avoid TDZ errors
+export const supabase = supabaseImpl;
+
 // Auto-exchange OAuth code even if /auth/callback was skipped
 if (typeof window !== "undefined") {
   (async () => {
@@ -80,7 +88,7 @@ if (typeof window !== "undefined") {
         }
       }
     } catch (e) {
-      console.error("[Supabase AutoExchange] Exception", e);
+      console.error("[Supabase AutoExchange] Error:", (e as any)?.message || e);
     }
   })();
 }
@@ -88,13 +96,11 @@ if (typeof window !== "undefined") {
 // Optional: global listener re-dispatch (if not already done elsewhere)
 if (typeof window !== "undefined") {
   supabase.auth.onAuthStateChange((evt, session) => {
-    window.dispatchEvent(
-      new CustomEvent("supabase-auth", { detail: { event: evt, hasUser: !!session?.user } })
-    );
+    window.dispatchEvent(new CustomEvent("supabase-auth", { detail: { event: evt, hasUser: !!session?.user } }));
   });
 }
 
-export const supabase = supabaseImpl;
+// Export config flag once
 export { isSupabaseConfigured };
 
 // Diagnostics (optional)
