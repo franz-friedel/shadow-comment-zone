@@ -31,7 +31,7 @@ export function useComments(videoId: string | null) {
     if (error) {
       const detail = getLastCommentsError();
       const tableMissing =
-        !!error.message.match(/relation .* does not exist/i) || error.code === "42P01";
+        !!error.message.match(/relation .* does not exist/i) || (error as any).code === "42P01";
       setState((s) => ({
         ...s,
         loading: false,
@@ -41,10 +41,32 @@ export function useComments(videoId: string | null) {
       }));
       return;
     }
+    // Initial successful load
+    setState((s) => ({
+      ...s,
+      loading: false,
+      error: null,
+      comments: data || [],
+    }));
+    // Subscribe to live updates
+    const unsub = subscribeComments(videoId, (type, c) => {
+      setState((s) => {
+        if (type === "INSERT") {
+          if (s.comments.some((x) => x.id === c.id)) return s;
           return { ...s, comments: [...s.comments, c] };
         }
-        if (type === "UPDATE") {
-          return { ...s, comments: s.comments.map((x) => (x.id === c.id ? c : x)) };
+  useEffect(() => {
+    let cleanup: any;
+    load().then((unsub) => {
+      cleanup = unsub;
+    });
+    return () => {
+      if (cleanup) cleanup();
+    };
+  }, [load]);
+
+  const create = useCallback(
+    async (body: string, parentId?: string | null, timestampSeconds?: number | null) => {
         }
         if (type === "DELETE") {
           return { ...s, comments: s.comments.filter((x) => x.id !== c.id) };

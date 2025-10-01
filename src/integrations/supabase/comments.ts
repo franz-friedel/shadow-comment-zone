@@ -1,4 +1,5 @@
 import { supabase } from "./client";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export interface ShadowComment {
   id: string;
@@ -16,13 +17,13 @@ let lastError: string | null = null;
 export function getLastCommentsError() { return lastError; }
 
 export async function fetchComments(videoId: string) {
-  lastError = null;
-  const query = supabase
+  const query = (supabase as SupabaseClient)
     .from("shadow_comments")
     .select("*")
     .eq("video_id", videoId)
     // accept rows where is_deleted is false OR null (in case older rows have null)
     .or("is_deleted.is.null,is_deleted.eq.false")
+    .order("created_at", { ascending: true });
     .order("created_at", { ascending: true });
 
   const { data, error } = await query;
@@ -39,7 +40,11 @@ export async function addComment(params: {
   timestampSeconds?: number | null;
 }) {
   lastError = null;
-  const { data: userResult } = await supabase.auth.getUser();
+  const { data: userResult, error: authError } = await supabase.auth.getUser();
+  if (authError) {
+    lastError = authError.message;
+    return { data: null, error: authError };
+  }
   if (!userResult?.user) {
     const err = new Error("Not authenticated");
     lastError = err.message;
@@ -47,18 +52,24 @@ export async function addComment(params: {
   }
 
   const { videoId, body, parentId = null, timestampSeconds = null } = params;
-  const { data, error } = await supabase
-    .from("shadow_comments")
-    .insert({
-      video_id: videoId,
-      "postgres_changes",
-      { event: "*", schema: "public", table: "shadow_comments", filter: `video_id=eq.${videoId}` },
-      (payload) => {
-        cb(payload.new as ShadowComment, payload.eventType);
-      },
-    )
-    .subscribe();
-  return () => {
-    supabase.removeChannel(channel);
+
+  const insertPayload = {
+    video_id: videoId,
+    user_id: userResult.user.id,
+    body,
+    parent_id: parentId,
+    timestamp_seconds: timestampSeconds,
   };
+  const { data, error } = await (supabase as SupabaseClient)
+    .from("shadow_comments")
+    .insert(insertPayload)
+    .select()
+    .single();
+    .single();
+
+  if (error) {
+    lastError = error.message;
+  }
+
+  return { data: (data as ShadowComment) ?? null, error };
 }
