@@ -1,10 +1,9 @@
 import {
-  BOT_AUTHOR_ID,
   ShadowComment,
   addComment,
-  createLocalSeedComments,
   fetchComments,
-  subscribeComments,
+  getLastCommentsError,
+  subscribeComments
 } from "@/integrations/supabase/comments";
 import { useCallback, useEffect, useState } from "react";
 
@@ -14,51 +13,39 @@ interface UseCommentsState {
   error: string | null;
   tableMissing: boolean;
   lastDetail: string | null;
-  seededLocally: boolean;
+  seeded: boolean;
 }
 
-export function useComments(videoId: string | null, opts?: { localSeed?: boolean; seedMin?: number }) {
+export function useComments(videoId: string | null, opts?: { allowSeeds?: boolean; seedMin?: number }) {
   const [state, setState] = useState<UseCommentsState>({
     comments: [],
     loading: !!videoId,
     error: null,
     tableMissing: false,
     lastDetail: null,
-    seededLocally: false,
+    seeded: false
   });
 
-  const localSeed = opts?.localSeed ?? true;
-  const seedMin = opts?.seedMin ?? 5;
+  const allowSeeds = opts?.allowSeeds ?? true;
+  const seedMin = opts?.seedMin ?? 4;
 
   const load = useCallback(async () => {
     if (!videoId) return;
     setState((s) => ({ ...s, loading: true, error: null }));
-    const { data, error } = await fetchComments(videoId);
+    const { data, error } = await fetchComments(videoId, { allowSeeds, seedMin });
     if (error) {
+      const detail = getLastCommentsError();
       const tableMissing =
-        !!error.message?.match(/relation .* does not exist/i) || (error as any).code === "42P01";
-      const detail = (error as any)?.message || null;
+        (error.code === "42P01") ||
+        /relation .* does not exist/i.test(error.message || "");
       setState((s) => ({
         ...s,
         loading: false,
+        comments: data,
         error: tableMissing ? "Comments table missing" : "Failed to load comments",
-        tableMissing,
         lastDetail: detail,
-        seededLocally: false,
-      }));
-      return;
-    }
-    // Local seeding (no DB writes) if empty and allowed
-    if (data.length === 0 && localSeed) {
-      const seeds = createLocalSeedComments(videoId, seedMin);
-      setState((s) => ({
-        ...s,
-        loading: false,
-        comments: seeds,
-        error: null,
-        tableMissing: false,
-        lastDetail: null,
-        seededLocally: true,
+        tableMissing,
+        seeded: data.some((c) => c._local)
       }));
       return;
     }
@@ -67,34 +54,29 @@ export function useComments(videoId: string | null, opts?: { localSeed?: boolean
       loading: false,
       comments: data,
       error: null,
-      tableMissing: false,
       lastDetail: null,
-      seededLocally: false,
+      tableMissing: false,
+      seeded: data.some((c) => c._local)
     }));
-  }, [videoId, localSeed, seedMin]);
+  }, [videoId, allowSeeds, seedMin]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
     if (!videoId) return;
     const unsub = subscribeComments(videoId, (c, type) => {
       setState((s) => {
         let comments = s.comments;
-        if (s.seededLocally && type === "INSERT") {
-          // Drop local seed comments once real data starts arriving
-          comments = s.comments.filter((x) => x.user_id !== BOT_AUTHOR_ID || !x.is_bot);
+        // On first real insert replace local seeds
+        if (type === "INSERT" && s.seeded) {
+          comments = comments.filter((x) => !x._local);
         }
         if (type === "INSERT") {
           if (comments.find((x) => x.id === c.id)) return s;
-          return { ...s, comments: [...comments, c], seededLocally: false };
+          return { ...s, comments: [...comments, c], seeded: false };
         }
         if (type === "UPDATE") {
-          return {
-            ...s,
-            comments: comments.map((x) => (x.id === c.id ? c : x)),
-          };
+          return { ...s, comments: comments.map((x) => (x.id === c.id ? c : x)) };
         }
         if (type === "DELETE") {
           return { ...s, comments: comments.filter((x) => x.id !== c.id) };
@@ -102,30 +84,21 @@ export function useComments(videoId: string | null, opts?: { localSeed?: boolean
         return s;
       });
     });
-    return unsub;
+    // Wrap async unsubscribe to satisfy React's sync cleanup requirement.
+    return () => { void unsub(); };
   }, [videoId]);
 
   const add = useCallback(
     async (body: string, parentId?: string | null, ts?: number | null) => {
       if (!videoId) return { data: null, error: new Error("No video id") };
-      // On first real post while in local seed mode: clear seeds optimistically
+      // Remove seeds optimistically
       setState((s) =>
-        s.seededLocally
-          ? {
-            ...s,
-            comments: s.comments.filter((x) => !(x.is_bot && x.user_id === BOT_AUTHOR_ID)),
-            seededLocally: false,
-          }
-          : s
+        s.seeded ? { ...s, comments: s.comments.filter((c) => !c._local), seeded: false } : s
       );
       const result = await addComment({ videoId, body, parentId, timestampSeconds: ts });
       if (result.error) {
-        const detail = (result.error as any)?.message || null;
-        setState((s) => ({
-          ...s,
-          error: "Failed to add comment",
-          lastDetail: detail,
-        }));
+        const detail = getLastCommentsError();
+        setState((s) => ({ ...s, error: "Failed to add comment", lastDetail: detail }));
       }
       return result;
     },

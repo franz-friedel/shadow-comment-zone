@@ -1,5 +1,6 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useComments } from "@/hooks/useComments";
+import { Button } from "@/components/ui/button";
 import { useState } from "react";
 
 interface Props {
@@ -8,33 +9,19 @@ interface Props {
 
 export function CommentsPane({ videoId }: Props) {
   const { user } = useAuth();
-  type CommentsHookResult = {
-    comments: Array<{
-      id: string;
-      is_bot?: boolean;
-      user_id: string;
-      body: string;
-      created_at: string;
-    }>;
-    loading: boolean;
-    error: unknown;
-    tableMissing: boolean;
-    add: (body: string) => Promise<void>;
-    reload: () => void;
-    lastDetail: any;
-    seededLocally: boolean;
-  };
-
   const {
-    comments = [],
-    loading = false,
-    error = null,
-    tableMissing = false,
-    add = async (_body: string) => { },
-    reload = () => { },
-    lastDetail = null,
-    seededLocally = false,
-  } = ((useComments(videoId, { localSeed: true, seedMin: 5 }) ?? {}) as Partial<CommentsHookResult>);
+    comments,
+    loading,
+    error,
+    tableMissing,
+    lastDetail,
+    add,
+    reload,
+    seeded,
+  } = useComments(videoId, {
+    allowSeeds: true,
+    seedMin: 5,
+  });
   const [draft, setDraft] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -51,13 +38,45 @@ export function CommentsPane({ videoId }: Props) {
               No shadow comments yet.
             </div>
           )}
-          {seededLocally && comments.length > 0 && (
+          {seeded && comments.length > 0 && (
             <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-              Showing sample seed comments. Post to start a real thread.
+              Showing sample comments (local only) – sign in & post to start the
+              real thread.
             </div>
           )}
           {loading && (
             <div className="text-xs text-muted-foreground">Loading…</div>
+          )}
+          {error && (
+            <div className="text-xs space-y-2 text-red-500 border border-red-500/30 rounded p-3">
+              <div>{error}</div>
+              {lastDetail && (
+                <div className="opacity-80 break-words">
+                  Detail: {lastDetail}
+                </div>
+              )}
+              {tableMissing && (
+                <pre className="bg-red-500/10 p-2 rounded text-[10px] overflow-auto">
+                  {`CREATE TABLE public.shadow_comments (
+  id uuid primary key default gen_random_uuid(),
+  video_id text not null,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  body text not null,
+  parent_id uuid references shadow_comments(id) on delete cascade,
+  timestamp_seconds int,
+  is_deleted boolean default false,
+  is_bot boolean default false,
+  created_at timestamptz default now()
+);
+alter table public.shadow_comments enable row level security;
+create policy "select all" on public.shadow_comments for select using (true);
+create policy "insert auth" on public.shadow_comments for insert with check (auth.uid() = user_id);`}
+                </pre>
+              )}
+              <Button size="sm" variant="outline" onClick={reload} disabled={loading}>
+                Retry
+              </Button>
+            </div>
           )}
           {comments.map((c) => (
             <div
@@ -66,11 +85,11 @@ export function CommentsPane({ videoId }: Props) {
             >
               <div className="flex items-center gap-2">
                 <span className="font-medium text-primary truncate">
-                  {c.is_bot ? "Bot" : c.user_id}
+                  {c._local ? "Seed Bot" : c.user_id}
                 </span>
-                {c.is_bot && (
+                {c._local && (
                   <span className="text-[10px] uppercase tracking-wide bg-muted px-1.5 py-0.5 rounded">
-                    seed
+                    sample
                   </span>
                 )}
               </div>

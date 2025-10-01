@@ -6,6 +6,7 @@ const supabaseClient = supabase as SupabaseClient;
 
 /** Last error message set by comment operations (null if none). */
 export let lastError: string | null = null;
+export function getLastCommentsError() { return lastError; }
 
 export interface ShadowComment {
   id: string;
@@ -18,24 +19,38 @@ export interface ShadowComment {
   updated_at?: string | null;
   is_deleted?: boolean | null;
   is_bot?: boolean | null;
+  _local?: boolean;        // marker for non-persisted seed
 }
 
-export const BOT_AUTHOR_ID = "00000000-0000-4000-8000-botshadow000";
-export const BOT_SIGNATURE = "shadow-bot";
-
-const BOT_COMMENT_TEMPLATES: string[] = [
-  "Seed comment 👋 (shadow layer active).",
-  "YouTube hides stuff? Discuss it here instead.",
-  "Preserving a thread even if YT moderates heavily.",
-  "Add thoughts — this is independent of YT filters.",
-  "Shadow comments keep discussion visible.",
-  "Seen removals on the original page? Mirror it here.",
-  "Jump in — these seed comments disappear once real posts arrive.",
+// Local seed generator (non-persisted)
+const BOT_AUTHOR_ID = "00000000-0000-4000-8000-botshadow000";
+const SEED_SNIPPETS = [
+  "Seed shadow thread: discuss even if YT hides comments.",
+  "Comment moderation on YT too strict? Continue here.",
+  "Shadow layer active — add your take.",
+  "This space keeps context if the original thread vanishes.",
+  "Early seed so page doesn’t look empty. Join in."
 ];
 
-// Fetch + existing code unchanged...
+function buildLocalSeeds(videoId: string, count = 4): ShadowComment[] {
+  const pick = [...SEED_SNIPPETS].sort(() => Math.random() - 0.5).slice(0, count);
+  const base = Date.now();
+  return pick.map((body, i) => ({
+    id: `seed-${videoId}-${i}-${Math.random().toString(36).slice(2)}`,
+    video_id: videoId,
+    user_id: BOT_AUTHOR_ID,
+    body,
+    parent_id: null,
+    timestamp_seconds: null,
+    created_at: new Date(base - (count - i) * 500).toISOString(),
+    is_deleted: false,
+    is_bot: true,
+    _local: true
+  }));
+}
 
-export async function fetchComments(videoId: string) {
+/** Fetch comments; on error returns diagnostic + local seeds (never empty UI). */
+export async function fetchComments(videoId: string, opts?: { allowSeeds?: boolean; seedMin?: number }) {
   lastError = null;
   const { data, error } = await supabaseClient
     .from("shadow_comments")
@@ -45,99 +60,75 @@ export async function fetchComments(videoId: string) {
     .order("created_at", { ascending: true });
 
   if (error) {
-    lastError = `${error.code || ""} ${error.message}`.trim();
-    console.error("[Comments fetch error]", lastError);
+    lastError = `[${error.code || "?"}] ${error.message}`;
+    // Provide non-persisted seeds so UI has content
+    if (opts?.allowSeeds !== false) {
+      return {
+        data: buildLocalSeeds(videoId, opts?.seedMin ?? 4),
+        error
+      };
+    }
+    return { data: [] as ShadowComment[], error };
   }
-  return { data: (data as ShadowComment[] | null) ?? [], error };
+
+  if (!data || data.length === 0) {
+    // Optionally seed if table empty
+    if (opts?.allowSeeds !== false) {
+      return { data: buildLocalSeeds(videoId, opts?.seedMin ?? 4), error: null };
+    }
+  }
+
+  return { data: data as ShadowComment[], error: null };
 }
 
-/** Insert a new comment (requires auth – RLS enforced). */
+/** Insert a real comment (suppressed errors if table missing). */
 export async function addComment(params: {
   videoId: string;
   body: string;
   parentId?: string | null;
   timestampSeconds?: number | null;
-  isBot?: boolean;
 }) {
   lastError = null;
-  const { data: sessionResult, error: authError } = await supabaseClient.auth.getSession();
-  if (authError) {
-    lastError = authError.message;
-    return { data: null, error: authError };
-  }
+  const { data: sessionResult } = await supabaseClient.auth.getSession();
   const user = sessionResult?.session?.user;
-  const { videoId, body, parentId = null, timestampSeconds = null, isBot = false } = params;
-  // For bot comments we use a pseudo user id & skip auth requirement
-  let userId = user?.id;
-  if (isBot) {
-    userId = BOT_AUTHOR_ID;
-  }
-  if (!userId) {
+  if (!user) {
     const err = new Error("Not authenticated");
     lastError = err.message;
     return { data: null, error: err };
   }
+
+  const { videoId, body, parentId = null, timestampSeconds = null } = params;
   const { data, error } = await supabaseClient
     .from("shadow_comments")
     .insert({
       video_id: videoId,
-      user_id: userId,
+      user_id: user.id,
       body,
       parent_id: parentId,
       timestamp_seconds: timestampSeconds,
-      is_bot: isBot,
+      is_bot: false
     })
     .select()
     .single();
+
   if (error) {
-    lastError = `${error.code || ""} ${error.message}`.trim();
-    console.error("[Comments insert error]", lastError);
+    lastError = `[${error.code || "?"}] ${error.message}`;
   }
+
   return { data: (data as ShadowComment) ?? null, error };
 }
 
-export function createLocalSeedComments(videoId: string, min = 5): ShadowComment[] {
-  const now = Date.now();
-  const picked = [...BOT_COMMENT_TEMPLATES]
-    .sort(() => Math.random() - 0.5)
-    .slice(0, min);
-  return picked.map((body, i) => ({
-    id: crypto.randomUUID ? crypto.randomUUID() : `${videoId}-seed-${i}-${Math.random()}`,
-    video_id: videoId,
-    user_id: BOT_AUTHOR_ID,
-    body,
-    parent_id: null,
-    timestamp_seconds: null,
-    created_at: new Date(now - (min - i) * 1000).toISOString(),
-    is_deleted: false,
-    is_bot: true,
-  }));
-}
-
-export function isBotComment(c: ShadowComment) {
-  return !!c.is_bot || c.user_id === BOT_AUTHOR_ID;
-}
-
-/** Realtime subscription to changes for a video's comments. */
 export function subscribeComments(
   videoId: string,
-  cb: (comment: ShadowComment, type: "INSERT" | "UPDATE" | "DELETE") => void
+  cb: (c: ShadowComment, type: "INSERT" | "UPDATE" | "DELETE") => void
 ) {
   const channel = supabaseClient
     .channel(`shadow_comments_${videoId}`)
     .on(
       "postgres_changes",
       { event: "*", schema: "public", table: "shadow_comments", filter: `video_id=eq.${videoId}` },
-      (payload) => {
-        const type = payload.eventType as "INSERT" | "UPDATE" | "DELETE";
-        const record =
-          type === "DELETE" ? (payload.old as ShadowComment) : (payload.new as ShadowComment);
-        cb(record, type);
-      }
+      (payload) => cb(payload.new as ShadowComment, payload.eventType as any)
     )
     .subscribe();
-
-  return () => {
-    supabaseClient.removeChannel(channel);
-  };
+  return () => supabaseClient.removeChannel(channel);
 }
