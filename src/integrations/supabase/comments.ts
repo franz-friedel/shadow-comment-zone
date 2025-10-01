@@ -19,10 +19,21 @@ export interface ShadowComment {
   updated_at?: string | null;
   is_deleted?: boolean | null;
   is_bot?: boolean | null;
-  _local?: boolean;        // marker for non-persisted seed
+  _local?: boolean;
 }
 
-// Local seed generator (non-persisted)
+export interface CommentsDiagnostics {
+  code?: string;
+  message?: string;
+  tableMissing: boolean;
+  permissionDenied: boolean;
+  raw?: any;
+}
+
+let lastDiagnostics: CommentsDiagnostics | null = null;
+export function getLastCommentsDiagnostics() { return lastDiagnostics; }
+
+// Bot / seed helpers
 const BOT_AUTHOR_ID = "00000000-0000-4000-8000-botshadow000";
 const SEED_SNIPPETS = [
   "Seed shadow thread: discuss even if YT hides comments.",
@@ -49,10 +60,14 @@ function buildLocalSeeds(videoId: string, count = 4): ShadowComment[] {
   }));
 }
 
-/** Fetch comments; on error returns diagnostic + local seeds (never empty UI). */
-export async function fetchComments(videoId: string, opts?: { allowSeeds?: boolean; seedMin?: number }) {
+export async function fetchComments(
+  videoId: string,
+  opts?: { allowSeeds?: boolean; seedMin?: number }
+) {
   lastError = null;
-  const { data, error } = await supabaseClient
+  lastDiagnostics = null;
+
+  const { data, error } = await supabase
     .from("shadow_comments")
     .select("*")
     .eq("video_id", videoId)
@@ -60,19 +75,34 @@ export async function fetchComments(videoId: string, opts?: { allowSeeds?: boole
     .order("created_at", { ascending: true });
 
   if (error) {
-    lastError = `[${error.code || "?"}] ${error.message}`;
-    // Provide non-persisted seeds so UI has content
+    const msg = error.message || "";
+    const code = (error as any).code;
+    const tableMissing = /relation .*shadow_comments.* does not exist/i.test(msg) || code === "42P01";
+    const permissionDenied =
+      /permission denied/i.test(msg) ||
+      code === "42501" ||
+      msg.toLowerCase().includes("rls") ||
+      msg.toLowerCase().includes("not authorized");
+    lastError = `[${code || "?"}] ${msg}`;
+    lastDiagnostics = {
+      code,
+      message: msg,
+      tableMissing,
+      permissionDenied,
+      raw: error,
+    };
+
+    // Always provide seeds (UI should never be blank)
     if (opts?.allowSeeds !== false) {
       return {
         data: buildLocalSeeds(videoId, opts?.seedMin ?? 4),
-        error
+        error,
       };
     }
     return { data: [] as ShadowComment[], error };
   }
 
   if (!data || data.length === 0) {
-    // Optionally seed if table empty
     if (opts?.allowSeeds !== false) {
       return { data: buildLocalSeeds(videoId, opts?.seedMin ?? 4), error: null };
     }
@@ -81,7 +111,6 @@ export async function fetchComments(videoId: string, opts?: { allowSeeds?: boole
   return { data: data as ShadowComment[], error: null };
 }
 
-/** Insert a real comment (suppressed errors if table missing). */
 export async function addComment(params: {
   videoId: string;
   body: string;
@@ -89,16 +118,15 @@ export async function addComment(params: {
   timestampSeconds?: number | null;
 }) {
   lastError = null;
-  const { data: sessionResult } = await supabaseClient.auth.getSession();
+  const { data: sessionResult } = await supabase.auth.getSession();
   const user = sessionResult?.session?.user;
   if (!user) {
     const err = new Error("Not authenticated");
     lastError = err.message;
     return { data: null, error: err };
   }
-
   const { videoId, body, parentId = null, timestampSeconds = null } = params;
-  const { data, error } = await supabaseClient
+  const { data, error } = await supabase
     .from("shadow_comments")
     .insert({
       video_id: videoId,
@@ -112,9 +140,9 @@ export async function addComment(params: {
     .single();
 
   if (error) {
-    lastError = `[${error.code || "?"}] ${error.message}`;
+    const code = (error as any).code;
+    lastError = `[${code || "?"}] ${error.message}`;
   }
-
   return { data: (data as ShadowComment) ?? null, error };
 }
 
@@ -122,7 +150,7 @@ export function subscribeComments(
   videoId: string,
   cb: (c: ShadowComment, type: "INSERT" | "UPDATE" | "DELETE") => void
 ) {
-  const channel = supabaseClient
+  const channel = supabase
     .channel(`shadow_comments_${videoId}`)
     .on(
       "postgres_changes",
@@ -130,5 +158,5 @@ export function subscribeComments(
       (payload) => cb(payload.new as ShadowComment, payload.eventType as any)
     )
     .subscribe();
-  return () => supabaseClient.removeChannel(channel);
+  return () => supabase.removeChannel(channel);
 }

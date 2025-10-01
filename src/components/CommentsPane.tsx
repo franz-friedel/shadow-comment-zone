@@ -1,6 +1,6 @@
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useComments } from "@/hooks/useComments";
-import { Button } from "@/components/ui/button";
 import { useState } from "react";
 
 interface Props {
@@ -14,14 +14,12 @@ export function CommentsPane({ videoId }: Props) {
     loading,
     error,
     tableMissing,
+    permissionDenied,
     lastDetail,
     add,
     reload,
     seeded,
-  } = useComments(videoId, {
-    allowSeeds: true,
-    seedMin: 5,
-  });
+  } = useComments(videoId, { allowSeeds: true, seedMin: 5 });
   const [draft, setDraft] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -38,10 +36,10 @@ export function CommentsPane({ videoId }: Props) {
               No shadow comments yet.
             </div>
           )}
-          {seeded && comments.length > 0 && (
+          {seeded && !error && (
             <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-              Showing sample comments (local only) – sign in & post to start the
-              real thread.
+              Showing local sample comments (not stored). Post to start a real
+              thread.
             </div>
           )}
           {loading && (
@@ -49,11 +47,9 @@ export function CommentsPane({ videoId }: Props) {
           )}
           {error && (
             <div className="text-xs space-y-2 text-red-500 border border-red-500/30 rounded p-3">
-              <div>{error}</div>
+              <div className="font-medium">{error}</div>
               {lastDetail && (
-                <div className="opacity-80 break-words">
-                  Detail: {lastDetail}
-                </div>
+                <div className="opacity-80 break-words">Detail: {lastDetail}</div>
               )}
               {tableMissing && (
                 <pre className="bg-red-500/10 p-2 rounded text-[10px] overflow-auto">
@@ -73,16 +69,21 @@ create policy "select all" on public.shadow_comments for select using (true);
 create policy "insert auth" on public.shadow_comments for insert with check (auth.uid() = user_id);`}
                 </pre>
               )}
+              {permissionDenied && !tableMissing && (
+                <pre className="bg-red-500/10 p-2 rounded text-[10px] overflow-auto">
+                  {`-- Likely missing RLS policies:
+alter table public.shadow_comments enable row level security;
+create policy "select all" on public.shadow_comments for select using ( true );
+create policy "insert auth" on public.shadow_comments for insert with check ( auth.uid() = user_id );`}
+                </pre>
+              )}
               <Button size="sm" variant="outline" onClick={reload} disabled={loading}>
                 Retry
               </Button>
             </div>
           )}
           {comments.map((c) => (
-            <div
-              key={c.id}
-              className="text-sm border-b last:border-b-0 pb-3 flex flex-col gap-1"
-            >
+            <div key={c.id} className="text-sm border-b last:border-b-0 pb-3 flex flex-col gap-1">
               <div className="flex items-center gap-2">
                 <span className="font-medium text-primary truncate">
                   {c._local ? "Seed Bot" : c.user_id}
