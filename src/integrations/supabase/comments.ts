@@ -39,12 +39,13 @@ export async function addComment(params: {
   timestampSeconds?: number | null;
 }) {
   lastError = null;
-  const { data: userResult, error: authError } = await supabase.auth.getUser();
+  const { data: sessionResult, error: authError } = await supabase.auth.getSession();
   if (authError) {
     lastError = authError.message;
     return { data: null, error: authError };
   }
-  if (!userResult?.user) {
+  const user = sessionResult?.session?.user;
+  if (!user) {
     const err = new Error("Not authenticated");
     lastError = err.message;
     return { data: null, error: err };
@@ -52,22 +53,39 @@ export async function addComment(params: {
 
   const { videoId, body, parentId = null, timestampSeconds = null } = params;
 
+  // FIX: remove corrupt duplicate lines & build proper payload
   const insertPayload = {
     video_id: videoId,
-    user_id: userResult.user.id,
+    user_id: user.id,
     body,
     parent_id: parentId,
     timestamp_seconds: timestampSeconds,
   };
-  const { data, error } = await (supabase as SupabaseClient)
-  const { data, error } = await (supabase as SupabaseClient)
+
+  const { data, error } = await supabase
     .from("shadow_comments")
     .insert(insertPayload)
     .select()
     .single();
+
   if (error) {
     lastError = error.message;
   }
 
   return { data: (data as ShadowComment) ?? null, error };
+}
+
+export function subscribeComments(
+  videoId: string,
+  cb: (c: ShadowComment, type: "INSERT" | "UPDATE" | "DELETE") => void
+) {
+  const channel = supabase
+    .channel(`shadow_comments_${videoId}`)
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "shadow_comments", filter: `video_id=eq.${videoId}` },
+      (payload) => cb(payload.new as ShadowComment, payload.eventType as any)
+    )
+    .subscribe();
+  return () => supabase.removeChannel(channel);
 }

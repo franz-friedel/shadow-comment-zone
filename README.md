@@ -71,3 +71,19 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+## Automation
+
+Scripts:
+- `npm run lint` (check)
+- `npm run lint:fix` (auto-fix)
+- `npm run format`
+- `npm run typecheck`
+- `npm run check` (lint + type)
+- `npm run check:fix`
+
+Pre-commit:
+- Husky + lint-staged auto-fix staged files.
+
+CI:
+- GitHub Actions runs lint + typecheck + build on push/PR.
