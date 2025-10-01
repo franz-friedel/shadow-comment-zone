@@ -10,6 +10,7 @@ import { AdSenseAd } from "@/components/AdSenseAd";
 import { Button } from "@/components/ui/button";
 import { Coffee } from "lucide-react";
 import { YouTubeTrends } from "@/components/YouTubeTrends";
+import { CommentsPane } from "@/components/CommentsPane";
 
 const Index = () => {
   const [currentVideo, setCurrentVideo] = useState<{ id: string; data: any } | null>(null);
@@ -57,6 +58,9 @@ const Index = () => {
     // Clear localStorage
     localStorage.removeItem('currentVideo');
   };
+
+  // Derive videoId from state / URL / input (placeholder below)
+  const videoId = currentVideo?.id || null;
 
   if (error) {
     return (
@@ -142,6 +146,7 @@ const Index = () => {
               <div className="lg:col-span-3 space-y-8">
                 <VideoDisplay videoData={currentVideo.data} onBack={handleBack} />
                 <CommentSection videoId={currentVideo.id} />
+                <CommentsPane videoId={videoId} />
               </div>
               
               {/* Sidebar with Ads */}
