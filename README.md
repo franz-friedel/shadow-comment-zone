@@ -87,3 +87,15 @@ Pre-commit:
 
 CI:
 - GitHub Actions runs lint + typecheck + build on push/PR.
+
+## Shadow Comment Seeding (Bot)
+
+For early traction the app can inject a small set (default 5) of clearly labeled seed "Bot" comments per video when the shadow thread is empty. These rows are flagged with `is_bot = true` (and a fixed pseudo user id) so they can be filtered or removed later.
+
+Disable seeding by passing `autoSeed: false` to `useComments(videoId, { autoSeed: false })`.
+
+Schema addition (if not present):
+
+```sql
+ALTER TABLE public.shadow_comments ADD COLUMN IF NOT EXISTS is_bot boolean DEFAULT false;
+```
