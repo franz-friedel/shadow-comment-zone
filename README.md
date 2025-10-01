@@ -88,6 +88,20 @@ Pre-commit:
 CI:
 - GitHub Actions runs lint + typecheck + build on push/PR.
 
+## Automated Lint & Format
+
+On save: VS Code runs ESLint fix + organize imports + Prettier (see .vscode/settings.json).  
+On commit: Husky + lint-staged auto-fix staged files (unused imports removed, formatted).  
+Manual commands:
+- `npm run lint`
+- `npm run lint:fix`
+- `npm run format`
+- `npm run typecheck`
+- `npm run check`
+- `npm run fix`
+
+Only real TypeScript errors (types / logic) remain for manual attention.
+
 ## Shadow Comment Seeding (Bot)
 
 For early traction the app can inject a small set (default 5) of clearly labeled seed "Bot" comments per video when the shadow thread is empty. These rows are flagged with `is_bot = true` (and a fixed pseudo user id) so they can be filtered or removed later.
