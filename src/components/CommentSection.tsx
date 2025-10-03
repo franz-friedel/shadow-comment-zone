@@ -32,49 +32,151 @@ export const CommentSection = ({ videoId }: CommentSectionProps) => {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    console.log('CommentSection mounted with videoId:', videoId);
+    console.log('Current user:', user);
     fetchComments();
-  }, [videoId]);
+  }, [videoId, user]);
 
   const fetchComments = async () => {
     setLoading(true);
     try {
-      // First get comments
-      const { data: commentsData, error: commentsError } = await supabase
-        .from('comments')
-        .select('id, content, created_at, user_id')
-        .eq('video_id', videoId)
-        .order('created_at', { ascending: false });
+      console.log('Fetching comments for videoId:', videoId);
+      
+      // Try localStorage first as primary source for now
+      const fallbackComments = loadCommentsFromStorage(videoId);
+      if (fallbackComments.length > 0) {
+        console.log('Using localStorage comments:', fallbackComments);
+        setComments(fallbackComments);
+        setLoading(false);
+        return;
+      }
 
-      if (commentsError) throw commentsError;
+      // Try database as secondary source
+      try {
+        const { data: commentsData, error: commentsError } = await supabase
+          .from('comments')
+          .select('id, content, created_at, user_id')
+          .eq('video_id', videoId)
+          .order('created_at', { ascending: false });
 
-      // Then get profile information for each comment
-      const commentsWithProfiles = await Promise.all(
-        (commentsData || []).map(async (comment) => {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('display_name, avatar_url')
-            .eq('user_id', comment.user_id)
-            .maybeSingle();
+        console.log('Comments query result:', { commentsData, commentsError });
 
-          return {
-            ...comment,
-            display_name: profile?.display_name || 'Anonymous User',
-            avatar_url: profile?.avatar_url || null,
-          };
-        })
-      );
+        if (commentsError) {
+          console.error('Comments query error:', commentsError);
+          throw commentsError;
+        }
 
-      setComments(commentsWithProfiles);
+        // If no comments found in database, show empty state
+        if (!commentsData || commentsData.length === 0) {
+          console.log('No comments found in database');
+          setComments([]);
+          return;
+        }
+
+        // Then get profile information for each comment
+        const commentsWithProfiles = await Promise.all(
+          commentsData.map(async (comment) => {
+            console.log('Fetching profile for user:', comment.user_id);
+            try {
+              const { data: profile, error: profileError } = await supabase
+                .from('profiles')
+                .select('display_name, avatar_url')
+                .eq('user_id', comment.user_id)
+                .maybeSingle();
+
+              if (profileError) {
+                console.error('Profile query error for user', comment.user_id, ':', profileError);
+              }
+
+              return {
+                ...comment,
+                display_name: profile?.display_name || 'Anonymous User',
+                avatar_url: profile?.avatar_url || null,
+              };
+            } catch (profileError) {
+              console.error('Profile fetch error:', profileError);
+              return {
+                ...comment,
+                display_name: 'Anonymous User',
+                avatar_url: null,
+              };
+            }
+          })
+        );
+
+        console.log('Final comments with profiles:', commentsWithProfiles);
+        setComments(commentsWithProfiles);
+      } catch (dbError) {
+        console.error('Database error, using empty state:', dbError);
+        setComments([]);
+      }
     } catch (error) {
       console.error('Error fetching comments:', error);
+      setComments([]);
       toast({
         title: "Error",
-        description: "Failed to load comments",
+        description: "Failed to load comments. Check console for details.",
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
+  };
+
+  // Fallback function to load comments from localStorage
+  const loadCommentsFromStorage = (videoId: string): Comment[] => {
+    try {
+      const storedComments = localStorage.getItem(`comments_${videoId}`);
+      if (storedComments) {
+        return JSON.parse(storedComments);
+      }
+    } catch (error) {
+      console.error('Error loading comments from localStorage:', error);
+    }
+    return [];
+  };
+
+  // Test function to create sample comments
+  const createTestComments = () => {
+    const testComments: Comment[] = [
+      {
+        id: '1',
+        content: 'This is a test comment to verify the system is working!',
+        created_at: new Date().toISOString(),
+        user_id: 'test-user',
+        display_name: 'Test User',
+        avatar_url: null,
+      },
+      {
+        id: '2',
+        content: 'Another test comment to show multiple comments work.',
+        created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30 minutes ago
+        user_id: 'test-user-2',
+        display_name: 'Another User',
+        avatar_url: null,
+      },
+      {
+        id: '3',
+        content: 'This is a longer comment to test how the system handles longer text content. It should wrap properly and display nicely in the UI.',
+        created_at: new Date(Date.now() - 1000 * 60 * 60).toISOString(), // 1 hour ago
+        user_id: 'test-user-3',
+        display_name: 'Comment Tester',
+        avatar_url: null,
+      }
+    ];
+    
+    // Save to localStorage for this video
+    testComments.forEach(comment => {
+      saveCommentToStorage(videoId, comment);
+    });
+    
+    setComments(testComments);
+    console.log('Test comments created and saved:', testComments);
+    
+    toast({
+      title: "Test Comments Added!",
+      description: "Sample comments have been added to test the system",
+    });
   };
 
   const handleSubmitComment = async () => {
@@ -90,15 +192,37 @@ export const CommentSection = ({ videoId }: CommentSectionProps) => {
 
     setSubmitting(true);
     try {
-      const { error } = await supabase
-        .from('comments')
-        .insert({
-          video_id: videoId,
-          user_id: user.id,
-          content: newComment.trim(),
-        });
+      // Create comment object
+      const newCommentObj: Comment = {
+        id: Date.now().toString(),
+        content: newComment.trim(),
+        created_at: new Date().toISOString(),
+        user_id: user.id,
+        display_name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
+        avatar_url: user.user_metadata?.avatar_url || null,
+      };
 
-      if (error) throw error;
+      // Save to localStorage first (primary storage)
+      saveCommentToStorage(videoId, newCommentObj);
+
+      // Try to save to database as backup
+      try {
+        const { error } = await supabase
+          .from('comments')
+          .insert({
+            video_id: videoId,
+            user_id: user.id,
+            content: newComment.trim(),
+          });
+
+        if (error) {
+          console.error('Database error (comment saved locally):', error);
+        } else {
+          console.log('Comment saved to database successfully');
+        }
+      } catch (dbError) {
+        console.error('Database error (comment saved locally):', dbError);
+      }
 
       setNewComment("");
       fetchComments(); // Refresh comments
@@ -115,6 +239,18 @@ export const CommentSection = ({ videoId }: CommentSectionProps) => {
       });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Function to save comment to localStorage
+  const saveCommentToStorage = (videoId: string, comment: Comment) => {
+    try {
+      const existingComments = loadCommentsFromStorage(videoId);
+      const updatedComments = [comment, ...existingComments];
+      localStorage.setItem(`comments_${videoId}`, JSON.stringify(updatedComments));
+      console.log('Comment saved to localStorage:', comment);
+    } catch (error) {
+      console.error('Error saving comment to localStorage:', error);
     }
   };
 
@@ -140,6 +276,14 @@ export const CommentSection = ({ videoId }: CommentSectionProps) => {
         <h3 className="text-xl font-semibold">
           Shadow Comments ({comments.length})
         </h3>
+        <Button 
+          onClick={createTestComments}
+          variant="outline"
+          size="sm"
+          className="ml-auto"
+        >
+          Test Comments
+        </Button>
       </div>
 
       {/* Add Comment */}

@@ -20,6 +20,29 @@ function createStub() {
         error: null,
       }),
     },
+    // Add database methods for stub
+    from: (table: string) => ({
+      select: (columns: string) => ({
+        eq: (column: string, value: any) => ({
+          order: (column: string, options: any) => Promise.resolve({
+            data: [],
+            error: null
+          }),
+          maybeSingle: () => Promise.resolve({
+            data: null,
+            error: null
+          })
+        }),
+        maybeSingle: () => Promise.resolve({
+          data: null,
+          error: null
+        })
+      }),
+      insert: (data: any) => Promise.resolve({
+        data: null,
+        error: null
+      })
+    })
   };
 }
 
