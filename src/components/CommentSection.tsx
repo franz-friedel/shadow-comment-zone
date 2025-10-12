@@ -34,121 +34,90 @@ export const CommentSection = ({ videoId }: CommentSectionProps) => {
   useEffect(() => {
     console.log('CommentSection mounted with videoId:', videoId);
     console.log('Current user:', user);
-    fetchComments();
+    
+    // Always try to load comments, with fallback to localStorage
+    const loadCommentsSafely = async () => {
+      try {
+        await fetchComments();
+      } catch (error) {
+        console.error('Initial comment load failed, trying localStorage fallback:', error);
+        // Fallback to localStorage only
+        const localComments = loadCommentsFromStorage(videoId);
+        setComments(localComments);
+        setLoading(false);
+      }
+    };
+    
+    loadCommentsSafely();
   }, [videoId, user]);
 
   const fetchComments = async () => {
     setLoading(true);
+    
+    // Always start with localStorage comments (guaranteed to work)
+    const localStorageComments = loadCommentsFromStorage(videoId);
+    console.log('Loading comments for videoId:', videoId, 'localStorage comments:', localStorageComments);
+    
+    // Set localStorage comments immediately for fast UI response
+    setComments(localStorageComments);
+    
+    // Try to get additional comments from database (non-blocking)
     try {
-      console.log('Fetching comments for videoId:', videoId);
-      
-      // Get comments from localStorage first (always available)
-      const localStorageComments = loadCommentsFromStorage(videoId);
-      console.log('localStorage comments:', localStorageComments);
-      
-      let databaseComments: Comment[] = [];
-      let databaseError: string | null = null;
-      
-      // Try to get comments from database (only if Supabase is properly configured)
-      try {
-        // Check if we're using the stub implementation
-        const isUsingStub = (window as any).__SUPABASE_STUB__ === true;
-        if (isUsingStub) {
-          console.log('Supabase not configured, using localStorage only');
-          databaseError = 'Database not configured';
-        } else {
-          const { data: commentsData, error: commentsError } = await supabase
-            .from('comments')
-            .select('id, content, created_at, user_id')
-            .eq('video_id', videoId)
-            .order('created_at', { ascending: false });
+      const isUsingStub = (window as any).__SUPABASE_STUB__ === true;
+      if (!isUsingStub) {
+        const { data: commentsData, error: commentsError } = await supabase
+          .from('comments')
+          .select('id, content, created_at, user_id')
+          .eq('video_id', videoId)
+          .order('created_at', { ascending: false });
 
-          console.log('Database comments query result:', { commentsData, commentsError });
+        if (!commentsError && commentsData && commentsData.length > 0) {
+          // Get profile information for each database comment
+          const databaseComments = await Promise.all(
+            commentsData.map(async (comment) => {
+              try {
+                const { data: profile } = await supabase
+                  .from('profiles')
+                  .select('display_name, avatar_url')
+                  .eq('user_id', comment.user_id)
+                  .maybeSingle();
 
-          if (commentsError) {
-            console.error('Database comments query error:', commentsError);
-            databaseError = commentsError.message;
-          } else if (commentsData && commentsData.length > 0) {
-            // Get profile information for each database comment
-            databaseComments = await Promise.all(
-              commentsData.map(async (comment) => {
-                console.log('Fetching profile for user:', comment.user_id);
-                try {
-                  const { data: profile, error: profileError } = await supabase
-                    .from('profiles')
-                    .select('display_name, avatar_url')
-                    .eq('user_id', comment.user_id)
-                    .maybeSingle();
+                return {
+                  ...comment,
+                  display_name: profile?.display_name || 'Anonymous User',
+                  avatar_url: profile?.avatar_url || null,
+                };
+              } catch (profileError) {
+                return {
+                  ...comment,
+                  display_name: 'Anonymous User',
+                  avatar_url: null,
+                };
+              }
+            })
+          );
 
-                  if (profileError) {
-                    console.error('Profile query error for user', comment.user_id, ':', profileError);
-                  }
+          // Merge with localStorage comments
+          const allComments = [...localStorageComments, ...databaseComments];
+          const uniqueComments = allComments.filter((comment, index, self) => 
+            index === self.findIndex(c => c.id === comment.id)
+          );
 
-                  return {
-                    ...comment,
-                    display_name: profile?.display_name || 'Anonymous User',
-                    avatar_url: profile?.avatar_url || null,
-                  };
-                } catch (profileError) {
-                  console.error('Profile fetch error:', profileError);
-                  return {
-                    ...comment,
-                    display_name: 'Anonymous User',
-                    avatar_url: null,
-                  };
-                }
-              })
-            );
-            console.log('Database comments with profiles:', databaseComments);
+          uniqueComments.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          setComments(uniqueComments);
+
+          // Cache database comments to localStorage
+          if (databaseComments.length > 0 && localStorageComments.length === 0) {
+            localStorage.setItem(`comments_${videoId}`, JSON.stringify(databaseComments));
           }
         }
-      } catch (dbError) {
-        console.error('Database error, continuing with localStorage only:', dbError);
-        databaseError = (dbError as Error).message;
       }
-
-      // Merge comments from both sources, removing duplicates by ID
-      const allComments = [...localStorageComments, ...databaseComments];
-      const uniqueComments = allComments.filter((comment, index, self) => 
-        index === self.findIndex(c => c.id === comment.id)
-      );
-
-      // Sort by creation date (newest first)
-      uniqueComments.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-      console.log('Final merged comments:', uniqueComments);
-      setComments(uniqueComments);
-
-      // If we have database comments but no localStorage comments, save them to localStorage for faster future access
-      if (databaseComments.length > 0 && localStorageComments.length === 0) {
-        try {
-          localStorage.setItem(`comments_${videoId}`, JSON.stringify(databaseComments));
-          console.log('Saved database comments to localStorage for future use');
-        } catch (error) {
-          console.error('Error saving database comments to localStorage:', error);
-        }
-      }
-
-      // Only show error if we have no comments at all and there was a database error
-      if (uniqueComments.length === 0 && databaseError && localStorageComments.length === 0) {
-        console.warn('No comments found and database unavailable:', databaseError);
-        // Don't show error toast for empty state - this is normal for new videos
-      }
-      
-    } catch (error) {
-      console.error('Error fetching comments:', error);
-      setComments([]);
-      // Only show error toast for unexpected errors, not for empty states
-      if (loadCommentsFromStorage(videoId).length === 0) {
-        toast({
-          title: "Error",
-          description: "Failed to load comments. Comments will be saved locally only.",
-          variant: "destructive",
-        });
-      }
-    } finally {
-      setLoading(false);
+    } catch (dbError) {
+      // Database errors are silent - localStorage comments are already loaded
+      console.log('Database unavailable, using localStorage only');
     }
+    
+    setLoading(false);
   };
 
   // Fallback function to load comments from localStorage
