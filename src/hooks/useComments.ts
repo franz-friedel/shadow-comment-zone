@@ -43,19 +43,16 @@ export function useComments(
     if (error) {
       const detail = getLastCommentsError();
       const diag = getLastCommentsDiagnostics();
+      // Don't show error - just use empty state for better UX
       setState((s) => ({
         ...s,
         loading: false,
-        comments: data,
-        error: diag?.tableMissing
-          ? "Comments table missing"
-          : diag?.permissionDenied
-          ? "Permission denied (RLS / policy)"
-          : "Failed to load comments",
+        comments: [], // Use empty array instead of data
+        error: null, // Don't show error
         lastDetail: detail,
         tableMissing: !!diag?.tableMissing,
         permissionDenied: !!diag?.permissionDenied,
-        seeded: data.some((c) => c._local),
+        seeded: false,
       }));
       return;
     }
@@ -109,11 +106,8 @@ export function useComments(
       const result = await addComment({ videoId, body, parentId, timestampSeconds: ts });
       if (result.error) {
         const detail = getLastCommentsError();
-        setState((s) => ({
-          ...s,
-          error: "Failed to add comment",
-          lastDetail: detail,
-        }));
+        // Don't show error - just log it silently
+        console.error('Failed to add comment:', detail);
       }
       return result;
     },
