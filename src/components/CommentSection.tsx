@@ -1,13 +1,13 @@
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AdSenseAd } from "@/components/AdSenseAd";
-import { MessageCircle, ThumbsUp, ThumbsDown, Reply, Send } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { MessageCircle, Send } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 interface Comment {
@@ -42,82 +42,110 @@ export const CommentSection = ({ videoId }: CommentSectionProps) => {
     try {
       console.log('Fetching comments for videoId:', videoId);
       
-      // Try localStorage first as primary source for now
-      const fallbackComments = loadCommentsFromStorage(videoId);
-      if (fallbackComments.length > 0) {
-        console.log('Using localStorage comments:', fallbackComments);
-        setComments(fallbackComments);
-        setLoading(false);
-        return;
-      }
-
-      // Try database as secondary source
+      // Get comments from localStorage first (always available)
+      const localStorageComments = loadCommentsFromStorage(videoId);
+      console.log('localStorage comments:', localStorageComments);
+      
+      let databaseComments: Comment[] = [];
+      let databaseError: string | null = null;
+      
+      // Try to get comments from database (only if Supabase is properly configured)
       try {
-        const { data: commentsData, error: commentsError } = await supabase
-          .from('comments')
-          .select('id, content, created_at, user_id')
-          .eq('video_id', videoId)
-          .order('created_at', { ascending: false });
+        // Check if we're using the stub implementation
+        const isUsingStub = (window as any).__SUPABASE_STUB__ === true;
+        if (isUsingStub) {
+          console.log('Supabase not configured, using localStorage only');
+          databaseError = 'Database not configured';
+        } else {
+          const { data: commentsData, error: commentsError } = await supabase
+            .from('comments')
+            .select('id, content, created_at, user_id')
+            .eq('video_id', videoId)
+            .order('created_at', { ascending: false });
 
-        console.log('Comments query result:', { commentsData, commentsError });
+          console.log('Database comments query result:', { commentsData, commentsError });
 
-        if (commentsError) {
-          console.error('Comments query error:', commentsError);
-          throw commentsError;
+          if (commentsError) {
+            console.error('Database comments query error:', commentsError);
+            databaseError = commentsError.message;
+          } else if (commentsData && commentsData.length > 0) {
+            // Get profile information for each database comment
+            databaseComments = await Promise.all(
+              commentsData.map(async (comment) => {
+                console.log('Fetching profile for user:', comment.user_id);
+                try {
+                  const { data: profile, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('display_name, avatar_url')
+                    .eq('user_id', comment.user_id)
+                    .maybeSingle();
+
+                  if (profileError) {
+                    console.error('Profile query error for user', comment.user_id, ':', profileError);
+                  }
+
+                  return {
+                    ...comment,
+                    display_name: profile?.display_name || 'Anonymous User',
+                    avatar_url: profile?.avatar_url || null,
+                  };
+                } catch (profileError) {
+                  console.error('Profile fetch error:', profileError);
+                  return {
+                    ...comment,
+                    display_name: 'Anonymous User',
+                    avatar_url: null,
+                  };
+                }
+              })
+            );
+            console.log('Database comments with profiles:', databaseComments);
+          }
         }
-
-        // If no comments found in database, show empty state
-        if (!commentsData || commentsData.length === 0) {
-          console.log('No comments found in database');
-          setComments([]);
-          return;
-        }
-
-        // Then get profile information for each comment
-        const commentsWithProfiles = await Promise.all(
-          commentsData.map(async (comment) => {
-            console.log('Fetching profile for user:', comment.user_id);
-            try {
-              const { data: profile, error: profileError } = await supabase
-                .from('profiles')
-                .select('display_name, avatar_url')
-                .eq('user_id', comment.user_id)
-                .maybeSingle();
-
-              if (profileError) {
-                console.error('Profile query error for user', comment.user_id, ':', profileError);
-              }
-
-              return {
-                ...comment,
-                display_name: profile?.display_name || 'Anonymous User',
-                avatar_url: profile?.avatar_url || null,
-              };
-            } catch (profileError) {
-              console.error('Profile fetch error:', profileError);
-              return {
-                ...comment,
-                display_name: 'Anonymous User',
-                avatar_url: null,
-              };
-            }
-          })
-        );
-
-        console.log('Final comments with profiles:', commentsWithProfiles);
-        setComments(commentsWithProfiles);
       } catch (dbError) {
-        console.error('Database error, using empty state:', dbError);
-        setComments([]);
+        console.error('Database error, continuing with localStorage only:', dbError);
+        databaseError = (dbError as Error).message;
       }
+
+      // Merge comments from both sources, removing duplicates by ID
+      const allComments = [...localStorageComments, ...databaseComments];
+      const uniqueComments = allComments.filter((comment, index, self) => 
+        index === self.findIndex(c => c.id === comment.id)
+      );
+
+      // Sort by creation date (newest first)
+      uniqueComments.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      console.log('Final merged comments:', uniqueComments);
+      setComments(uniqueComments);
+
+      // If we have database comments but no localStorage comments, save them to localStorage for faster future access
+      if (databaseComments.length > 0 && localStorageComments.length === 0) {
+        try {
+          localStorage.setItem(`comments_${videoId}`, JSON.stringify(databaseComments));
+          console.log('Saved database comments to localStorage for future use');
+        } catch (error) {
+          console.error('Error saving database comments to localStorage:', error);
+        }
+      }
+
+      // Only show error if we have no comments at all and there was a database error
+      if (uniqueComments.length === 0 && databaseError && localStorageComments.length === 0) {
+        console.warn('No comments found and database unavailable:', databaseError);
+        // Don't show error toast for empty state - this is normal for new videos
+      }
+      
     } catch (error) {
       console.error('Error fetching comments:', error);
       setComments([]);
-      toast({
-        title: "Error",
-        description: "Failed to load comments. Check console for details.",
-        variant: "destructive",
-      });
+      // Only show error toast for unexpected errors, not for empty states
+      if (loadCommentsFromStorage(videoId).length === 0) {
+        toast({
+          title: "Error",
+          description: "Failed to load comments. Comments will be saved locally only.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -192,40 +220,55 @@ export const CommentSection = ({ videoId }: CommentSectionProps) => {
 
     setSubmitting(true);
     try {
-      // Create comment object
+      let commentId = Date.now().toString();
+      let commentCreatedAt = new Date().toISOString();
+
+      // Try to save to database first to get the real ID (only if Supabase is configured)
+      try {
+        const isUsingStub = (window as any).__SUPABASE_STUB__ === true;
+        if (isUsingStub) {
+          console.log('Supabase not configured, using local storage only');
+        } else {
+          const { data: insertData, error } = await supabase
+            .from('comments')
+            .insert({
+              video_id: videoId,
+              user_id: user.id,
+              content: newComment.trim(),
+            })
+            .select('id, created_at')
+            .single();
+
+          if (error) {
+            console.error('Database error, using fallback ID:', error);
+          } else if (insertData) {
+            commentId = insertData.id;
+            commentCreatedAt = insertData.created_at;
+            console.log('Comment saved to database with ID:', commentId);
+          }
+        }
+      } catch (dbError) {
+        console.error('Database error, using fallback ID:', dbError);
+      }
+
+      // Create comment object with the correct ID (either from database or fallback)
       const newCommentObj: Comment = {
-        id: Date.now().toString(),
+        id: commentId,
         content: newComment.trim(),
-        created_at: new Date().toISOString(),
+        created_at: commentCreatedAt,
         user_id: user.id,
         display_name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
         avatar_url: user.user_metadata?.avatar_url || null,
       };
 
-      // Save to localStorage first (primary storage)
+      // Save to localStorage for immediate UI update
       saveCommentToStorage(videoId, newCommentObj);
 
-      // Try to save to database as backup
-      try {
-        const { error } = await supabase
-          .from('comments')
-          .insert({
-            video_id: videoId,
-            user_id: user.id,
-            content: newComment.trim(),
-          });
-
-        if (error) {
-          console.error('Database error (comment saved locally):', error);
-        } else {
-          console.log('Comment saved to database successfully');
-        }
-      } catch (dbError) {
-        console.error('Database error (comment saved locally):', dbError);
-      }
+      // Update the UI immediately with the new comment
+      setComments(prevComments => [newCommentObj, ...prevComments]);
 
       setNewComment("");
-      fetchComments(); // Refresh comments
+      
       toast({
         title: "Comment posted!",
         description: "Your voice has been heard in the shadow realm",
@@ -285,6 +328,16 @@ export const CommentSection = ({ videoId }: CommentSectionProps) => {
           Test Comments
         </Button>
       </div>
+      
+      {/* Show status indicator if using localStorage only */}
+      {(window as any).__SUPABASE_STUB__ === true && (
+        <div className="mb-4 p-3 bg-yellow-100 border border-yellow-300 rounded-lg">
+          <p className="text-sm text-yellow-800">
+            <strong>Local Mode:</strong> Comments are saved to your browser only. 
+            To enable cloud sync, please configure the database connection.
+          </p>
+        </div>
+      )}
 
       {/* Add Comment */}
       <Card className="p-4 bg-comment-bg border-border">
