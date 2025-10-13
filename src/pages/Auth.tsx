@@ -3,7 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { useLocalAuth } from '@/hooks/useLocalAuth';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from "@/integrations/supabase/client";
 import { Coffee } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -16,7 +17,7 @@ const authSchema = z.object({
 });
 
 const Auth = () => {
-  const { user, loading, signUp, signIn, signInWithGoogle } = useLocalAuth();
+  const { user, loading, signUpWithEmail, signInWithEmail, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -54,17 +55,17 @@ const Auth = () => {
     if (googleLoading) return;
     setGoogleLoading(true);
     try {
-      const { error } = await signInWithGoogle();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
       if (error) {
         toast({
           title: "Google sign-in failed",
           description: error.message,
           variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Welcome!",
-          description: "You have been signed in with Google.",
         });
       }
     } catch (e: any) {
@@ -110,7 +111,7 @@ const Auth = () => {
       });
 
       if (isLogin) {
-        const { error } = await signIn(validatedData.email, validatedData.password);
+        const { error } = await signInWithEmail(validatedData.email, validatedData.password);
         if (error) {
           toast({
             title: "Sign in failed",
@@ -124,7 +125,7 @@ const Auth = () => {
           });
         }
       } else {
-        const { error } = await signUp(
+        const { error } = await signUpWithEmail(
           validatedData.email,
           validatedData.password,
           validatedData.name
@@ -138,7 +139,7 @@ const Auth = () => {
         } else {
           toast({
             title: "Account created!",
-            description: "Welcome to Shadow Comments!",
+            description: "Please check your email to verify your account.",
           });
         }
       }
