@@ -59,15 +59,17 @@ if (isSupabaseConfigured) {
     supabaseImpl = createClient(url, key, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
     });
-    console.info("[Supabase] Initialized (resolved env).");
+    console.info("[Supabase] ✅ Initialized successfully with environment variables");
     if (typeof window !== "undefined") (window as any).__SUPABASE_STUB__ = false;
   } catch (e) {
-    console.error("[Supabase] Initialization failed; falling back to stub.", e);
+    console.error("[Supabase] ❌ Initialization failed; falling back to stub.", e);
     supabaseImpl = createStub();
   }
 } else {
   // Only fall back if BOTH missing (not just key fallback)
   if (!rawUrl && !rawKey) {
+    console.warn("[Supabase] ⚠️  No environment variables found - using stub implementation");
+    console.warn("[Supabase] To fix: Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file");
     supabaseImpl = createStub();
   } else {
     // Force initialization anyway with resolved values (avoid stub)
@@ -76,9 +78,10 @@ if (isSupabaseConfigured) {
       supabaseImpl = createClient(url, key, {
         auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
       });
+      console.info("[Supabase] ✅ Initialized with fallback values");
       if (typeof window !== "undefined") (window as any).__SUPABASE_STUB__ = false;
     } catch (e) {
-      console.error("[Supabase] Fallback init failed; using stub.", e);
+      console.error("[Supabase] ❌ Fallback init failed; using stub.", e);
       supabaseImpl = createStub();
     }
   }

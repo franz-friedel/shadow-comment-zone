@@ -71,7 +71,51 @@ export function CommentsPane({ videoId }: Props) {
         
         {error && (
           <div className="text-sm text-red-500 border border-red-500/30 rounded p-3 bg-red-50">
-            <div className="font-medium">Error: {error}</div>
+            <div className="font-medium">❌ Error: {error}</div>
+            <div className="text-xs text-red-600 mt-1">
+              {error.includes('Database not configured') && (
+                <div>
+                  <p>To fix this issue:</p>
+                  <ol className="list-decimal list-inside mt-1 space-y-1">
+                    <li>Set up Supabase environment variables (VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY)</li>
+                    <li>Run the database migration to create the comments table</li>
+                    <li>Ensure RLS policies are properly configured</li>
+                  </ol>
+                </div>
+              )}
+              {error.includes('Comments table not found') && (
+                <div>
+                  <p>Run this SQL in your Supabase SQL editor:</p>
+                  <pre className="text-xs bg-gray-100 p-2 rounded mt-1 overflow-x-auto">
+{`CREATE TABLE public.comments (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  video_id text NOT NULL,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  display_name text,
+  body text NOT NULL,
+  created_at timestamp with time zone DEFAULT now()
+);
+
+CREATE INDEX idx_comments_video_id_created_at 
+ON public.comments (video_id, created_at DESC);
+
+ALTER TABLE public.comments ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Comments are viewable by everyone" 
+ON public.comments FOR SELECT USING (true);
+
+CREATE POLICY "Authenticated users can create comments" 
+ON public.comments FOR INSERT TO authenticated
+WITH CHECK (auth.uid() = user_id);`}
+                  </pre>
+                </div>
+              )}
+              {error.includes('Permission denied') && (
+                <div>
+                  <p>Check your RLS policies in Supabase. The SELECT policy should allow anonymous access.</p>
+                </div>
+              )}
+            </div>
             <Button 
               size="sm" 
               variant="outline" 
