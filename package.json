@@ -42,7 +42,6 @@
     "@radix-ui/react-switch": "^1.1.2",
     "@radix-ui/react-tabs": "^1.1.2",
     "@radix-ui/react-toast": "^1.2.15",
-    "@rollup/rollup-darwin-arm64": "^4.52.4",
     "@supabase/supabase-js": "^2.43.1",
     "autoprefixer": "^10.4.21",
     "class-variance-authority": "^0.7.1",
@@ -70,7 +69,8 @@
     "eslint-plugin-react-hooks": "4.6.0",
     "eslint-plugin-unused-imports": "3.2.0",
     "prettier": "3.3.3",
+    "rollup": "4.28.0",
     "typescript": "5.4.5",
-    "vite": "^5.4.10"
+        "vite": "4.5.3"
   }
 }

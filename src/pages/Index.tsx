@@ -1,12 +1,12 @@
-import { useState, useEffect } from "react";
-import { VideoInput } from "@/components/VideoInput";
-import { VideoDisplay } from "@/components/VideoDisplay";
-import { UserMenu } from "@/components/UserMenu";
 import { AdSenseAd } from "@/components/AdSenseAd";
-import { Button } from "@/components/ui/button";
-import { Coffee } from "lucide-react";
-import { YouTubeTrends } from "@/components/YouTubeTrends";
 import { CommentsPane } from "@/components/CommentsPane";
+import { Button } from "@/components/ui/button";
+import { UserMenu } from "@/components/UserMenu";
+import { VideoDisplay } from "@/components/VideoDisplay";
+import { VideoInput } from "@/components/VideoInput";
+import { YouTubeTrends } from "@/components/YouTubeTrends";
+import { Coffee } from "lucide-react";
+import { useEffect, useState } from "react";
 
 const Index = () => {
   const [currentVideo, setCurrentVideo] = useState<{ id: string; data: any } | null>(null);
