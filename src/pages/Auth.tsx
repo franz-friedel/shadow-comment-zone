@@ -3,8 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from "@/integrations/supabase/client";
+import { useLocalAuth } from '@/hooks/useLocalAuth';
 import { Coffee } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -17,7 +16,7 @@ const authSchema = z.object({
 });
 
 const Auth = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, signUp, signIn, signInWithGoogle } = useLocalAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -51,25 +50,22 @@ const Auth = () => {
 
   const callbackPath = import.meta.env.VITE_SUPABASE_CALLBACK_PATH || "/auth/callback";
 
-  async function signInWithGoogle() {
+  async function handleGoogleSignIn() {
     if (googleLoading) return;
     setGoogleLoading(true);
     try {
-      const auth: any = supabase.auth;
-      if (auth?.signInWithOAuth) {
-        await auth.signInWithOAuth({
-          provider: "google",
-          options: {
-            redirectTo: `${window.location.origin}${import.meta.env.VITE_SUPABASE_CALLBACK_PATH || "/auth/callback"}`,
-            queryParams: {
-              prompt: "select_account",
-              access_type: "offline",
-              include_granted_scopes: "true",
-            },
-          },
+      const { error } = await signInWithGoogle();
+      if (error) {
+        toast({
+          title: "Google sign-in failed",
+          description: error.message,
+          variant: "destructive",
         });
       } else {
-        throw new Error("OAuth sign-in not available in this auth client");
+        toast({
+          title: "Welcome!",
+          description: "You have been signed in with Google.",
+        });
       }
     } catch (e: any) {
       toast({
@@ -77,39 +73,11 @@ const Auth = () => {
         description: e?.message || "Unexpected error",
         variant: "destructive",
       });
+    } finally {
       setGoogleLoading(false);
     }
   }
 
-  // Local fallback implementation since signUpWithEmail is not provided by the AuthContext type
-  async function signUpWithEmail(email: string, password: string, name?: string) {
-    const auth: any = supabase.auth;
-    if (auth && typeof auth.signUp === 'function') {
-      const { data, error } = await auth.signUp({
-        email,
-        password,
-        options: name ? { data: { name } } : undefined,
-      });
-      return { data, error };
-    }
-    return {
-      data: null,
-      error: new Error('signUp method not available in this auth client'),
-    };
-  }
-
-  // Local email/password sign-in helper (since not exposed via AuthContext type)
-  async function signInWithEmail(email: string, password: string) {
-    const auth: any = supabase.auth;
-    if (auth && typeof auth.signInWithPassword === 'function') {
-      const { data, error } = await auth.signInWithPassword({ email, password });
-      return { data, error };
-    }
-    return {
-      data: null,
-      error: new Error('signInWithPassword method not available in this auth client'),
-    };
-  }
 
   // Surface OAuth errors if they were appended to URL (safety)
   useEffect(() => {
@@ -142,16 +110,21 @@ const Auth = () => {
       });
 
       if (isLogin) {
-        const { error } = await signInWithEmail(validatedData.email, validatedData.password);
+        const { error } = await signIn(validatedData.email, validatedData.password);
         if (error) {
           toast({
             title: "Sign in failed",
             description: error.message,
             variant: "destructive",
           });
+        } else {
+          toast({
+            title: "Welcome back!",
+            description: "You have been signed in successfully.",
+          });
         }
       } else {
-        const { error } = await signUpWithEmail(
+        const { error } = await signUp(
           validatedData.email,
           validatedData.password,
           validatedData.name
@@ -165,7 +138,7 @@ const Auth = () => {
         } else {
           toast({
             title: "Account created!",
-            description: "Please check your email to verify your account.",
+            description: "Welcome to Shadow Comments!",
           });
         }
       }
@@ -271,7 +244,7 @@ const Auth = () => {
             {/* Google Sign In (updated with loading state) */}
             <Button
               type="button"
-              onClick={signInWithGoogle}
+              onClick={handleGoogleSignIn}
               disabled={googleLoading || loading}
               className="w-full rounded-md py-3 font-medium border flex items-center justify-center gap-2 disabled:opacity-60"
             >
