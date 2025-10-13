@@ -1,118 +1,108 @@
-import {
-  ShadowComment,
-  addComment,
-  fetchComments,
-  getLastCommentsDiagnostics,
-  getLastCommentsError,
-  subscribeComments,
-} from "@/integrations/supabase/comments";
 import { useCallback, useEffect, useState } from "react";
 
-interface UseCommentsState {
-  comments: ShadowComment[];
-  loading: boolean;
-  error: string | null;
-  tableMissing: boolean;
-  permissionDenied: boolean;
-  lastDetail: string | null;
-  seeded: boolean;
+interface Comment {
+  id: string;
+  video_id: string;
+  user_id: string | null;
+  display_name: string | null;
+  body: string;
+  created_at: string;
 }
 
-export function useComments(
-  videoId: string | null,
-  opts?: { allowSeeds?: boolean; seedMin?: number }
-) {
+interface UseCommentsState {
+  comments: Comment[];
+  loading: boolean;
+  error: string | null;
+}
+
+export function useComments(videoId: string | null) {
   const [state, setState] = useState<UseCommentsState>({
     comments: [],
-    loading: !!videoId,
+    loading: false,
     error: null,
-    tableMissing: false,
-    permissionDenied: false,
-    lastDetail: null,
-    seeded: false,
   });
 
-  const allowSeeds = opts?.allowSeeds ?? true;
-  const seedMin = opts?.seedMin ?? 4;
-
   const load = useCallback(async () => {
-    if (!videoId) return;
-    setState((s) => ({ ...s, loading: true, error: null }));
-    const { data, error } = await fetchComments(videoId, { allowSeeds, seedMin });
-
-    if (error) {
-      const detail = getLastCommentsError();
-      const diag = getLastCommentsDiagnostics();
-      // Don't show error - just use empty state for better UX
-      setState((s) => ({
-        ...s,
-        loading: false,
-        comments: [], // Use empty array instead of data
-        error: null, // Don't show error
-        lastDetail: detail,
-        tableMissing: !!diag?.tableMissing,
-        permissionDenied: !!diag?.permissionDenied,
-        seeded: false,
-      }));
+    if (!videoId) {
+      setState({ comments: [], loading: false, error: null });
       return;
     }
 
-    setState((s) => ({
-      ...s,
-      loading: false,
-      comments: data,
-      error: null,
-      lastDetail: null,
-      tableMissing: false,
-      permissionDenied: false,
-      seeded: data.some((c) => c._local),
-    }));
-  }, [videoId, allowSeeds, seedMin]);
+    setState((s) => ({ ...s, loading: true, error: null }));
+    
+    try {
+      console.log(`[useComments] Fetching comments for videoId: ${videoId}`);
+      
+      const response = await fetch(`/api/comments?videoId=${encodeURIComponent(videoId)}&limit=50`);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log(`[useComments] Successfully loaded ${result.data?.length || 0} comments`);
+      
+      setState({
+        comments: result.data || [],
+        loading: false,
+        error: null,
+      });
+    } catch (error) {
+      console.error('[useComments] Error loading comments:', error);
+      setState({
+        comments: [],
+        loading: false,
+        error: error instanceof Error ? error.message : 'Failed to load comments',
+      });
+    }
+  }, [videoId]);
+
+  const addComment = useCallback(async (body: string) => {
+    if (!videoId) {
+      throw new Error("No video id");
+    }
+
+    try {
+      console.log(`[useComments] Adding comment for videoId: ${videoId}`);
+      
+      const response = await fetch('/api/comments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          videoId,
+          body: body.trim(),
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('[useComments] Successfully added comment:', result.data?.id);
+      
+      // Reload comments to show the new one
+      await load();
+      
+      return { data: result.data, error: null };
+    } catch (error) {
+      console.error('[useComments] Error adding comment:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to add comment';
+      return { data: null, error: new Error(errorMessage) };
+    }
+  }, [videoId, load]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  useEffect(() => {
-    if (!videoId) return;
-    const unsub = subscribeComments(videoId, (c, type) => {
-      setState((s) => {
-        let comments = s.comments;
-        if (type === "INSERT" && s.seeded) {
-          comments = comments.filter((x) => !x._local);
-        }
-        if (type === "INSERT") {
-          if (comments.find((x) => x.id === c.id)) return s;
-          return { ...s, comments: [...comments, c], seeded: false };
-        }
-        if (type === "UPDATE") {
-          return { ...s, comments: comments.map((x) => (x.id === c.id ? c : x)) };
-        }
-        if (type === "DELETE") {
-          return { ...s, comments: comments.filter((x) => x.id !== c.id) };
-        }
-        return s;
-      });
-    });
-    return unsub;
-  }, [videoId]);
-
-  const add = useCallback(
-    async (body: string, parentId?: string | null, ts?: number | null) => {
-      if (!videoId) return { data: null, error: new Error("No video id") };
-      setState((s) =>
-        s.seeded ? { ...s, comments: s.comments.filter((c) => !c._local), seeded: false } : s
-      );
-      const result = await addComment({ videoId, body, parentId, timestampSeconds: ts });
-      if (result.error) {
-        const detail = getLastCommentsError();
-        // Don't show error - just log it silently
-        console.error('Failed to add comment:', detail);
-      }
-      return result;
-    },
-    [videoId]
-  );
-
-  return { ...state, reload: load, add };
+  return { 
+    ...state, 
+    reload: load, 
+    add: addComment 
+  };
 }

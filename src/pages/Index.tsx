@@ -1,9 +1,6 @@
 import { useState, useEffect } from "react";
 import { VideoInput } from "@/components/VideoInput";
-// If VideoDisplay is a default export:
-import VideoDisplay from "@/components/VideoDisplay";
-// Or, if the actual export is named differently, update accordingly:
-// import { ActualExportName } from "@/components/VideoDisplay";
+import { VideoDisplay } from "@/components/VideoDisplay";
 import { CommentSection } from "@/components/CommentSection";
 import { UserMenu } from "@/components/UserMenu";
 import { AdSenseAd } from "@/components/AdSenseAd";
