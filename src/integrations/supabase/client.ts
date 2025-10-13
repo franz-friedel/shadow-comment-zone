@@ -56,9 +56,10 @@ const rawKey = supabaseAnonKey;
 
 if (isSupabaseConfigured) {
   try {
+    // Type instantiation workaround: explicit generic cast to 'any'
     supabaseImpl = createClient(url, key, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
-    });
+    }) as any;
     console.info("[Supabase] ✅ Initialized successfully with environment variables");
     if (typeof window !== "undefined") (window as any).__SUPABASE_STUB__ = false;
   } catch (e) {
@@ -75,9 +76,10 @@ if (isSupabaseConfigured) {
     // Force initialization anyway with resolved values (avoid stub)
     console.warn("[Supabase] Proceeding with fallback values.");
     try {
+      // Type instantiation workaround: explicit generic cast to 'any'
       supabaseImpl = createClient(url, key, {
         auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
-      });
+      }) as any;
       console.info("[Supabase] ✅ Initialized with fallback values");
       if (typeof window !== "undefined") (window as any).__SUPABASE_STUB__ = false;
     } catch (e) {

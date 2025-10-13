@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 // Ensure client (with auto-exchange logic) is imported before App mounts
-import '@/integrations/supabase/client';
+import './integrations/supabase/client';
 
 // Load AdSense script
 const adsenseScript = document.createElement('script');

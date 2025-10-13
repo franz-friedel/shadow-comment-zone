@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useCallback, useEffect, useState } from "react";
 
 interface Comment {
   id: string;
@@ -50,12 +50,10 @@ export function useComments(videoId: string | null) {
         .from('comments')
         .select('id, video_id, user_id, display_name, body, created_at')
         .eq('video_id', videoId)
-        .order('created_at', { ascending: false })
-        .limit(50);
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('[useComments] Supabase error:', error);
-        
         // Handle specific error cases
         if (error.code === 'PGRST116') {
           setState({
@@ -110,12 +108,7 @@ export function useComments(videoId: string | null) {
       }
 
       // Get current user
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        console.error('[useComments] Session error:', sessionError);
-        throw new Error('Authentication error');
-      }
+      const { data: sessionData } = await supabase.auth.getSession();
 
       const user = sessionData?.session?.user;
       if (!user) {
@@ -131,9 +124,7 @@ export function useComments(videoId: string | null) {
           body: body.trim(), 
           user_id: user.id, 
           display_name 
-        }])
-        .select()
-        .single();
+        }]);
 
       if (error) {
         console.error('[useComments] Error inserting comment:', error);
@@ -144,7 +135,6 @@ export function useComments(videoId: string | null) {
       
       // Reload comments to show the new one
       await load();
-      
       return { data, error: null };
     } catch (error) {
       console.error('[useComments] Error adding comment:', error);

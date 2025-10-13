@@ -1,8 +1,8 @@
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
 import { useComments } from "@/hooks/useComments";
-import { useState } from "react";
 
 interface Props {
   videoId: string | null;
@@ -10,7 +10,11 @@ interface Props {
 
 export function CommentsPane({ videoId }: Props) {
   const { user } = useAuth();
-  const { comments, loading, error, add, reload } = useComments(videoId);
+  const { data, error: commentsError } = useComments(videoId);
+  const comments = data?.comments || [];
+  const loading = data?.loading || false;
+  const add = data?.add;
+  const reload = data?.reload;
   const [draft, setDraft] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -18,7 +22,7 @@ export function CommentsPane({ videoId }: Props) {
     return null;
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!draft.trim() || submitting) return;
 
@@ -68,12 +72,12 @@ export function CommentsPane({ videoId }: Props) {
         {loading && (
           <div className="text-sm text-muted-foreground">Loading comments...</div>
         )}
-        
-        {error && (
+
+        {typeof Error === 'string' && (
           <div className="text-sm text-red-500 border border-red-500/30 rounded p-3 bg-red-50">
-            <div className="font-medium">❌ Error: {error}</div>
+            <div className="font-medium">❌ Error: {String(Error)}</div>
             <div className="text-xs text-red-600 mt-1">
-              {error.includes('Database not configured') && (
+              {typeof Error === "string" && (Error as string).includes('Database not configured') && (
                 <div>
                   <p>To fix this issue:</p>
                   <ol className="list-decimal list-inside mt-1 space-y-1">
@@ -83,11 +87,11 @@ export function CommentsPane({ videoId }: Props) {
                   </ol>
                 </div>
               )}
-              {error.includes('Comments table not found') && (
+              {typeof Error === 'string' && (Error as string).includes('Comments table not found') && (
                 <div>
                   <p>Run this SQL in your Supabase SQL editor:</p>
                   <pre className="text-xs bg-gray-100 p-2 rounded mt-1 overflow-x-auto">
-{`CREATE TABLE public.comments (
+{`CREATE TABLE public.comments (`}
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   video_id text NOT NULL,
   user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -106,11 +110,11 @@ ON public.comments FOR SELECT USING (true);
 
 CREATE POLICY "Authenticated users can create comments" 
 ON public.comments FOR INSERT TO authenticated
-WITH CHECK (auth.uid() = user_id);`}
+WITH CHECK (auth.uid() = user_id);`&rbrace;
                   </pre>
                 </div>
               )}
-              {error.includes('Permission denied') && (
+              {typeof Error === 'string' && (Error as string).includes('Permission denied') && (
                 <div>
                   <p>Check your RLS policies in Supabase. The SELECT policy should allow anonymous access.</p>
                 </div>
@@ -128,7 +132,7 @@ WITH CHECK (auth.uid() = user_id);`}
           </div>
         )}
         
-        {!loading && !error && comments.length === 0 && (
+        {!loading && !Error && comments.length === 0 && (
           <div className="text-sm text-muted-foreground text-center py-8">
             No comments yet. Be the first!
           </div>
