@@ -1,8 +1,8 @@
-import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
 import { useComments } from "@/hooks/useComments";
+import React, { useState } from "react";
 
 interface Props {
   videoId: string | null;
@@ -10,11 +10,7 @@ interface Props {
 
 export function CommentsPane({ videoId }: Props) {
   const { user } = useAuth();
-  const { data, error: commentsError } = useComments(videoId);
-  const comments = data?.comments || [];
-  const loading = data?.loading || false;
-  const add = data?.add;
-  const reload = data?.reload;
+  const { comments, loading, error, add, reload } = useComments(videoId);
   const [draft, setDraft] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -73,11 +69,11 @@ export function CommentsPane({ videoId }: Props) {
           <div className="text-sm text-muted-foreground">Loading comments...</div>
         )}
 
-        {typeof Error === 'string' && (
+        {error && (
           <div className="text-sm text-red-500 border border-red-500/30 rounded p-3 bg-red-50">
-            <div className="font-medium">❌ Error: {String(Error)}</div>
+            <div className="font-medium">❌ Error: {error}</div>
             <div className="text-xs text-red-600 mt-1">
-              {typeof Error === "string" && (Error as string).includes('Database not configured') && (
+              {error.includes('Database not configured') && (
                 <div>
                   <p>To fix this issue:</p>
                   <ol className="list-decimal list-inside mt-1 space-y-1">
@@ -87,7 +83,7 @@ export function CommentsPane({ videoId }: Props) {
                   </ol>
                 </div>
               )}
-              {typeof Error === 'string' && (Error as string).includes('Comments table not found') && (
+              {error.includes('Comments table not found') && (
                 <div>
                   <p>Run this SQL in your Supabase SQL editor:</p>
                   <pre className="text-xs bg-gray-100 p-2 rounded mt-1 overflow-x-auto">
@@ -114,7 +110,7 @@ WITH CHECK (auth.uid() = user_id);`&rbrace;
                   </pre>
                 </div>
               )}
-              {typeof Error === 'string' && (Error as string).includes('Permission denied') && (
+              {error.includes('Permission denied') && (
                 <div>
                   <p>Check your RLS policies in Supabase. The SELECT policy should allow anonymous access.</p>
                 </div>
@@ -132,7 +128,7 @@ WITH CHECK (auth.uid() = user_id);`&rbrace;
           </div>
         )}
         
-        {!loading && !Error && comments.length === 0 && (
+        {!loading && !error && comments.length === 0 && (
           <div className="text-sm text-muted-foreground text-center py-8">
             No comments yet. Be the first!
           </div>
