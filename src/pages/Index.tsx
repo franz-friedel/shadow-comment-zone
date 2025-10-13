@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { VideoInput } from "@/components/VideoInput";
 import { VideoDisplay } from "@/components/VideoDisplay";
-import { CommentSection } from "@/components/CommentSection";
 import { UserMenu } from "@/components/UserMenu";
 import { AdSenseAd } from "@/components/AdSenseAd";
 import { Button } from "@/components/ui/button";
@@ -142,8 +141,7 @@ const Index = () => {
               {/* Main Content */}
               <div className="lg:col-span-3 space-y-8">
                 <VideoDisplay videoData={currentVideo.data} onBack={handleBack} />
-                <CommentSection videoId={currentVideo.id} />
-                <CommentsPane videoId={videoId} />
+                <CommentsPane videoId={currentVideo.id} />
               </div>
               
               {/* Sidebar with Ads */}

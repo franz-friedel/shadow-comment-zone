@@ -1,8 +1,8 @@
-import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
 import { useSimpleComments } from "@/hooks/useSimpleComments";
+import React, { useState } from "react";
 
 interface Props {
   videoId: string | null;
