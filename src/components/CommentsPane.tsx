@@ -1,8 +1,8 @@
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
-import { useComments } from "@/hooks/useComments";
-import React, { useState } from "react";
+import { useSimpleComments } from "@/hooks/useSimpleComments";
 
 interface Props {
   videoId: string | null;
@@ -10,7 +10,7 @@ interface Props {
 
 export function CommentsPane({ videoId }: Props) {
   const { user } = useAuth();
-  const { comments, loading, error, add, reload } = useComments(videoId);
+  const { comments, loading, error, add, reload, createTestComments } = useSimpleComments(videoId);
   const [draft, setDraft] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -24,10 +24,10 @@ export function CommentsPane({ videoId }: Props) {
 
     setSubmitting(true);
     try {
-      const result = await add(draft.trim());
+      const displayName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Anonymous';
+      const result = await add(draft.trim(), displayName);
       if (result.error) {
         console.error('Failed to add comment:', result.error);
-        // Could show a toast here if needed
       } else {
         setDraft("");
       }
@@ -38,8 +38,30 @@ export function CommentsPane({ videoId }: Props) {
     }
   };
 
+  const handleCreateTestComments = () => {
+    const result = createTestComments();
+    if (result.success) {
+      console.log('Test comments created successfully');
+    } else {
+      console.error('Failed to create test comments:', result.error);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4">
+      {/* Header with Test Comments Button */}
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-semibold">Shadow Comments ({comments.length})</h3>
+        <Button 
+          size="sm" 
+          variant="outline" 
+          onClick={handleCreateTestComments}
+          disabled={loading}
+        >
+          Create Test Comments
+        </Button>
+      </div>
+
       {/* Add Comment Form */}
       {user && (
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -63,59 +85,27 @@ export function CommentsPane({ videoId }: Props) {
         </form>
       )}
 
+      {/* Sign In Prompt */}
+      {!user && (
+        <div className="border rounded-lg p-4 bg-muted/50">
+          <p className="text-sm text-muted-foreground mb-3">
+            Sign in with Google to join the conversation
+          </p>
+          <Button size="sm" onClick={() => window.location.href = '/auth'}>
+            Sign In
+          </Button>
+        </div>
+      )}
+
       {/* Comments List */}
       <div className="space-y-4">
         {loading && (
           <div className="text-sm text-muted-foreground">Loading comments...</div>
         )}
-
+        
         {error && (
           <div className="text-sm text-red-500 border border-red-500/30 rounded p-3 bg-red-50">
             <div className="font-medium">❌ Error: {error}</div>
-            <div className="text-xs text-red-600 mt-1">
-              {error.includes('Database not configured') && (
-                <div>
-                  <p>To fix this issue:</p>
-                  <ol className="list-decimal list-inside mt-1 space-y-1">
-                    <li>Set up Supabase environment variables (VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY)</li>
-                    <li>Run the database migration to create the comments table</li>
-                    <li>Ensure RLS policies are properly configured</li>
-                  </ol>
-                </div>
-              )}
-              {error.includes('Comments table not found') && (
-                <div>
-                  <p>Run this SQL in your Supabase SQL editor:</p>
-                  <pre className="text-xs bg-gray-100 p-2 rounded mt-1 overflow-x-auto">
-{`CREATE TABLE public.comments (`}
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  video_id text NOT NULL,
-  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
-  display_name text,
-  body text NOT NULL,
-  created_at timestamp with time zone DEFAULT now()
-);
-
-CREATE INDEX idx_comments_video_id_created_at 
-ON public.comments (video_id, created_at DESC);
-
-ALTER TABLE public.comments ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Comments are viewable by everyone" 
-ON public.comments FOR SELECT USING (true);
-
-CREATE POLICY "Authenticated users can create comments" 
-ON public.comments FOR INSERT TO authenticated
-WITH CHECK (auth.uid() = user_id);`&rbrace;
-                  </pre>
-                </div>
-              )}
-              {error.includes('Permission denied') && (
-                <div>
-                  <p>Check your RLS policies in Supabase. The SELECT policy should allow anonymous access.</p>
-                </div>
-              )}
-            </div>
             <Button 
               size="sm" 
               variant="outline" 
@@ -130,7 +120,7 @@ WITH CHECK (auth.uid() = user_id);`&rbrace;
         
         {!loading && !error && comments.length === 0 && (
           <div className="text-sm text-muted-foreground text-center py-8">
-            No comments yet. Be the first!
+            No comments yet. Be the first to comment!
           </div>
         )}
         
