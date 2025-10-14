@@ -132,38 +132,11 @@ export function useLocalAuth() {
     }
   }, []);
 
-  const signInWithGoogle = useCallback(async () => {
-    try {
-      // Simulate Google sign in with a demo user
-      const demoUser: User = {
-        id: `google_user_${Date.now()}`,
-        email: 'demo@google.com',
-        name: 'Google User',
-        avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=google',
-      };
-
-      // Save current user
-      localStorage.setItem('shadow-comments-user', JSON.stringify(demoUser));
-      setState({ user: demoUser, loading: false });
-
-      return {
-        data: { user: demoUser },
-        error: null,
-      };
-    } catch (error) {
-      console.error('Google sign in error:', error);
-      return {
-        data: null,
-        error: error instanceof Error ? error : new Error('Google sign in failed'),
-      };
-    }
-  }, []);
 
   return {
     ...state,
     signUp,
     signIn,
     signOut,
-    signInWithGoogle,
   };
 }
