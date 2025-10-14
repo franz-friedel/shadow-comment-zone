@@ -73,7 +73,7 @@ export function CommentsPane({ videoId }: Props) {
       {!user && (
         <div className="border rounded-lg p-4 bg-muted/50">
           <p className="text-sm text-muted-foreground mb-3">
-            Sign in with Google to join the conversation
+            Sign in to join the conversation
           </p>
           <Button size="sm" onClick={() => window.location.href = '/auth'}>
             Sign In
