@@ -1,114 +1,100 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
-  const [status, setStatus] = useState("Signing you in…");
+  const [status, setStatus] = useState("Processing Google sign-in...");
   const [error, setError] = useState<string | null>(null);
-  const finished = useRef(false);
-  const exchanged = useRef(false);
 
   useEffect(() => {
-    (async () => {
-      const url = new URL(window.location.href);
-      const code = url.searchParams.get("code");
-      const errorParam = url.searchParams.get("error");
-
-      if (errorParam) {
-        console.error("OAuth error:", errorParam);
-        navigate("/auth");
-        return;
-      }
-
-      // If using PKCE flow, Supabase should handle the session automatically after redirect.
-      // If you need to manually check for a session, do so here.
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) {
-        console.error("No session found after redirect");
-        // Continue to advanced logic below instead of returning
-      } else {
-        console.log("Session after redirect:", !!data.session);
-        navigate("/");
-        return;
-      }
-
-      // Advanced logic for handling session and code exchange
-      const listener = supabase.auth.onAuthStateChange((_evt, session) => {
-        if (session?.user && !finished.current) {
-          console.log("[AuthCallback] Session arrived via listener.");
-          successRedirect();
-        }
-      });
-
-      // Fallback: manual exchange after short delay if code present
-      let manualTimer: number | undefined;
-      if (code) {
-        manualTimer = window.setTimeout(async () => {
-          if (exchanged.current || finished.current) return;
-          setStatus("Waiting for session…");
-          console.log("[AuthCallback] Manual exchange fallback: checking session again.");
-          exchanged.current = true;
-          // Check again
-          const { data } = await supabase.auth.getSession();
-          if (data.session?.user) {
-            console.log("[AuthCallback] Session found on manual check.");
-            successRedirect();
-          } else {
-            setError("No session found after waiting.");
-            setStatus("Returning to /auth …");
-            cleanup();
-            setTimeout(() => navigate("/auth", { replace: true }), 2500);
-          }
-        }, 900); // ~1 second
-      }
-
-      // Hard timeout
-      const timeout = window.setTimeout(async () => {
-        if (finished.current) return;
-        const { data } = await supabase.auth.getSession();
-        if (data.session?.user) {
-          successRedirect();
+    const handleAuthCallback = async () => {
+      try {
+        console.log("AuthCallback: Starting callback handling");
+        
+        // Get the current URL and check for OAuth parameters
+        const url = new URL(window.location.href);
+        const code = url.searchParams.get("code");
+        const errorParam = url.searchParams.get("error");
+        
+        console.log("AuthCallback: URL params", { code: !!code, error: errorParam });
+        
+        if (errorParam) {
+          console.error("OAuth error:", errorParam);
+          setError(`OAuth error: ${errorParam}`);
+          setTimeout(() => navigate("/auth"), 3000);
           return;
         }
-        setError("Timeout waiting for session.");
-        setStatus("Returning to /auth …");
-        cleanup();
-        setTimeout(() => navigate("/auth", { replace: true }), 2000);
-      }, 7000);
 
-      function successRedirect() {
-        if (finished.current) return;
-        finished.current = true;
-        setStatus("Signed in. Redirecting …");
-        cleanup();
-        // Clean URL (remove code params)
-        window.history.replaceState({}, document.title, window.location.origin + "/");
-        setTimeout(() => navigate("/", { replace: true }), 300);
+        // Wait a moment for Supabase to process the session
+        setStatus("Completing sign-in...");
+        
+        // Check for session
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error("Session error:", sessionError);
+          setError(`Session error: ${sessionError.message}`);
+          setTimeout(() => navigate("/auth"), 3000);
+          return;
+        }
+        
+        if (sessionData.session) {
+          console.log("AuthCallback: Session found, redirecting to home");
+          setStatus("Sign-in successful! Redirecting...");
+          setTimeout(() => navigate("/"), 1000);
+        } else {
+          console.log("AuthCallback: No session found, trying to exchange code");
+          
+          if (code) {
+            // Try to exchange the code for a session
+            const { data: exchangeData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+            
+            if (exchangeError) {
+              console.error("Code exchange error:", exchangeError);
+              setError(`Code exchange error: ${exchangeError.message}`);
+              setTimeout(() => navigate("/auth"), 3000);
+              return;
+            }
+            
+            if (exchangeData.session) {
+              console.log("AuthCallback: Code exchanged successfully");
+              setStatus("Sign-in successful! Redirecting...");
+              setTimeout(() => navigate("/"), 1000);
+            } else {
+              console.error("AuthCallback: No session after code exchange");
+              setError("Failed to complete sign-in");
+              setTimeout(() => navigate("/auth"), 3000);
+            }
+          } else {
+            console.error("AuthCallback: No code parameter found");
+            setError("No authorization code received");
+            setTimeout(() => navigate("/auth"), 3000);
+          }
+        }
+      } catch (err) {
+        console.error("AuthCallback: Unexpected error:", err);
+        setError(`Unexpected error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        setTimeout(() => navigate("/auth"), 3000);
       }
+    };
 
-      function cleanup() {
-        listener.data.subscription.unsubscribe();
-        if (manualTimer) clearTimeout(manualTimer);
-        clearTimeout(timeout);
-      }
-    })();
+    handleAuthCallback();
   }, [navigate]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background text-sm">
-      <div className="space-y-3 text-center max-w-sm px-4">
-        <p className="font-medium">{status}</p>
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="w-full max-w-md text-center">
+        <div className="text-lg font-medium mb-2">{status}</div>
         {error && (
-          <div className="text-red-500 text-xs whitespace-pre-wrap break-words border border-red-500/30 rounded p-2 bg-red-500/5">
-            {error}
+          <div className="text-red-500 mb-4">
+            <div className="font-medium">Error:</div>
+            <div className="text-sm">{error}</div>
           </div>
         )}
-        {!error && (
-          <p className="text-muted-foreground text-xs">
-            If this does not finish automatically in a few seconds you may refresh safely.
-          </p>
-        )}
+        <div className="text-sm text-muted-foreground">
+          If you're not redirected automatically, <a href="/" className="text-primary underline">click here</a>
+        </div>
       </div>
     </div>
   );
