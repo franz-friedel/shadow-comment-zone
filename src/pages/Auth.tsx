@@ -16,7 +16,7 @@ const authSchema = z.object({
 });
 
 const Auth = () => {
-  // Email/password authentication only - Google sign-in removed
+  // Email/password authentication only - Google sign-in completely removed
   const { user, loading, signUpWithEmail, signInWithEmail, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
