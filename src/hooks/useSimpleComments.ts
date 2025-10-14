@@ -108,53 +108,6 @@ export function useSimpleComments(videoId: string | null) {
     }
   }, [videoId]);
 
-  const createTestComments = useCallback(() => {
-    if (!videoId) return;
-
-    const testComments: Comment[] = [
-      {
-        id: `test_comment_1_${Date.now()}`,
-        video_id: videoId,
-        user_id: null,
-        display_name: 'Test User 1',
-        body: 'This is a test comment to show the system is working!',
-        created_at: new Date().toISOString(),
-      },
-      {
-        id: `test_comment_2_${Date.now()}`,
-        video_id: videoId,
-        user_id: null,
-        display_name: 'Test User 2',
-        body: 'Another test comment to demonstrate multiple comments.',
-        created_at: new Date(Date.now() - 1000 * 60 * 5).toISOString(), // 5 minutes ago
-      },
-      {
-        id: `test_comment_3_${Date.now()}`,
-        video_id: videoId,
-        user_id: null,
-        display_name: 'Test User 3',
-        body: 'This is a longer comment to test how the system handles longer text content. It should wrap properly and display nicely in the UI.',
-        created_at: new Date(Date.now() - 1000 * 60 * 10).toISOString(), // 10 minutes ago
-      }
-    ];
-
-    try {
-      // Save test comments to localStorage
-      localStorage.setItem(`comments_${videoId}`, JSON.stringify(testComments));
-      
-      // Update state
-      setState(prev => ({
-        ...prev,
-        comments: testComments,
-        error: null,
-      }));
-
-      return { success: true };
-    } catch (error) {
-      console.error('Error creating test comments:', error);
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to create test comments' };
-    }
-  }, [videoId]);
 
   useEffect(() => {
     loadComments();
@@ -164,6 +117,5 @@ export function useSimpleComments(videoId: string | null) {
     ...state, 
     reload: loadComments, 
     add: addComment,
-    createTestComments,
   };
 }

@@ -10,7 +10,7 @@ interface Props {
 
 export function CommentsPane({ videoId }: Props) {
   const { user } = useAuth();
-  const { comments, loading, error, add, reload, createTestComments } = useSimpleComments(videoId);
+  const { comments, loading, error, add, reload } = useSimpleComments(videoId);
   const [draft, setDraft] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -38,28 +38,12 @@ export function CommentsPane({ videoId }: Props) {
     }
   };
 
-  const handleCreateTestComments = () => {
-    const result = createTestComments();
-    if (result.success) {
-      console.log('Test comments created successfully');
-    } else {
-      console.error('Failed to create test comments:', result.error);
-    }
-  };
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Header with Test Comments Button */}
+      {/* Header */}
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Shadow Comments ({comments.length})</h3>
-        <Button 
-          size="sm" 
-          variant="outline" 
-          onClick={handleCreateTestComments}
-          disabled={loading}
-        >
-          Create Test Comments
-        </Button>
       </div>
 
       {/* Add Comment Form */}
