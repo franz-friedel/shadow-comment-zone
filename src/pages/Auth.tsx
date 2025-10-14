@@ -16,8 +16,7 @@ const authSchema = z.object({
 });
 
 const Auth = () => {
-  // Email/password authentication only - Google sign-in completely removed
-  const { user, loading, signUpWithEmail, signInWithEmail, signOut } = useAuth();
+  const { user, loading, signUpWithEmail, signInWithEmail } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -37,15 +36,6 @@ const Auth = () => {
 
   useEffect(() => {
     document.title = pageTitle;
-    const metaDesc = document.querySelector('meta[name="description"]');
-    const content = 'Sign in or create an account to add shadow comments to YouTube videos.';
-    if (metaDesc) metaDesc.setAttribute('content', content);
-    else {
-      const m = document.createElement('meta');
-      m.name = 'description';
-      m.content = content;
-      document.head.appendChild(m);
-    }
   }, [pageTitle]);
 
   const handleSubmit = async (e: React.FormEvent) => {
