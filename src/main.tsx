@@ -5,6 +5,22 @@ import './index.css';
 // Ensure client (with auto-exchange logic) is imported before App mounts
 import './integrations/supabase/client';
 
+// Global error handler to catch unhandled errors
+window.addEventListener('error', (event) => {
+  console.error('Global error caught:', event.error);
+  console.error('Error details:', {
+    message: event.message,
+    filename: event.filename,
+    lineno: event.lineno,
+    colno: event.colno,
+    error: event.error
+  });
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('Unhandled promise rejection:', event.reason);
+});
+
 // Load AdSense script
 const adsenseScript = document.createElement('script');
 adsenseScript.async = true;

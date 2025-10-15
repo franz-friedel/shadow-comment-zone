@@ -1,6 +1,7 @@
+import ErrorBoundary from "@/components/ErrorBoundary";
+import { EnvCheck } from "@/components/EnvCheck";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
-import ErrorBoundary from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/hooks/useAuth";
 import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import Auth from "./pages/Auth";
@@ -21,6 +22,7 @@ const App = () => {
           </Routes>
           <Toaster />
           <Sonner />
+          <EnvCheck />
         </Router>
       </AuthProvider>
     </ErrorBoundary>
