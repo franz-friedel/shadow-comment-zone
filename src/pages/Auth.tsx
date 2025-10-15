@@ -51,9 +51,10 @@ const Auth = () => {
       if (isLogin) {
         const { error } = await signInWithEmail(validatedData.email, validatedData.password);
         if (error) {
+          console.error("Sign in error:", error);
           toast({
             title: "Sign in failed",
-            description: error.message,
+            description: error.message || "An unexpected error occurred. Please try again.",
             variant: "destructive",
           });
         } else {
@@ -69,9 +70,10 @@ const Auth = () => {
           validatedData.name
         );
         if (error) {
+          console.error("Sign up error:", error);
           toast({
             title: "Sign up failed",
-            description: error.message,
+            description: error.message || "An unexpected error occurred. Please try again.",
             variant: "destructive",
           });
         } else {
@@ -82,10 +84,17 @@ const Auth = () => {
         }
       }
     } catch (err: any) {
+      console.error("Auth form error:", err);
       if (err?.errors?.length) {
         toast({
           title: "Validation Error",
           description: err.errors[0]?.message || "Please check your input",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: err?.message || "An unexpected error occurred. Please try again.",
           variant: "destructive",
         });
       }

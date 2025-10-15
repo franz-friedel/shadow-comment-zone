@@ -15,33 +15,46 @@ let supabase: ReturnType<typeof createClient> | null = null;
 
 if (!url || !anon) {
   const msg = [
-    "[Supabase] Missing env!",
+    "[Supabase] Missing environment variables!",
     `VITE_SUPABASE_URL=${mask(url as string)}`,
     `VITE_SUPABASE_ANON_KEY=${mask(anon as string)}`,
-    "Add these to .env.local for local dev and to Vercel (Production) env vars."
+    "Please check your environment configuration."
   ].join("\n");
   
-  if (import.meta.env.DEV) {
-    throw new Error(msg);
-  } else {
-    console.error(msg);
-    // In production, create a dummy client to prevent crashes
-    supabase = createClient("https://dummy.supabase.co", "dummy-key", {
+  console.error(msg);
+  
+  // Create a mock client that throws helpful errors instead of crashing
+  supabase = {
+    auth: {
+      getSession: () => Promise.resolve({ data: { session: null }, error: new Error("Supabase not configured") }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+      signInWithPassword: () => Promise.resolve({ data: null, error: new Error("Supabase not configured") }),
+      signUp: () => Promise.resolve({ data: null, error: new Error("Supabase not configured") }),
+      signOut: () => Promise.resolve({ error: new Error("Supabase not configured") }),
+    },
+  } as any;
+} else {
+  try {
+    supabase = createClient(url, anon, {
       auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        detectSessionInUrl: false,
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
       },
     });
+  } catch (error) {
+    console.error("Failed to create Supabase client:", error);
+    // Fallback to mock client
+    supabase = {
+      auth: {
+        getSession: () => Promise.resolve({ data: { session: null }, error: new Error("Supabase client creation failed") }),
+        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+        signInWithPassword: () => Promise.resolve({ data: null, error: new Error("Supabase client creation failed") }),
+        signUp: () => Promise.resolve({ data: null, error: new Error("Supabase client creation failed") }),
+        signOut: () => Promise.resolve({ error: new Error("Supabase client creation failed") }),
+      },
+    } as any;
   }
-} else {
-  supabase = createClient(url, anon, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-    },
-  });
 }
 
 export { supabase };
